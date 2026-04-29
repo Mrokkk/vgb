@@ -1,0 +1,26 @@
+CPU
+===
+
+CPU clock:    4.194304 MHz (period 238.419 ns)
+System clock: 1/4 CPU clock - 1.048576 MHz (period 953.674 ns)
+T-cycle:      CPU clock tick
+M-cycle:      system clock tick
+
+Interrupts
+==========
+
+* IME controls interupts globally (1 = enabled, 0 = disabled)
+* IE controls interupts per source (V-blank, LCD, timer, serial, joypad)
+* IF contains interrupt requests (can be triggered by user)
+
+Graphics
+========
+
+LCD: 160x144
+H-sync: 9.198 KHz (108.719 us)
+V-sync: 59.73 Hz (17.627 ms)
+
+Dot: 4.194 MHz = one T-cycle = 238.419 ns
+
+Rendering: 65664 dots (15.656 ms)
+V-blank:   4560  dots (1.087  ms)

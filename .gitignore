@@ -1,0 +1,7 @@
+compile_commands.json
+.cache/
+__pycache__
+build/
+games/
+src/cpu/isa/instructions/*.cpp
+src/cpu/isa/instruction_set.cpp
