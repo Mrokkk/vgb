@@ -5,9 +5,9 @@
 #include <fmt/base.h>
 #include <raylib.h>
 
+#include "cpu/sm83.hpp"
 #include "event.hpp"
 #include "game_boy.hpp"
-#include "memory/generic.hpp"
 #include "sys/system.hpp"
 #include "utils/inline.hpp"
 
@@ -89,40 +89,44 @@ struct Counter
         return mValue = value;
     }
 
+    ALWAYS_INLINE T get() const
+    {
+        return mValue;
+    }
+
 private:
     T mValue;
 };
 
-union LCDC
-{
-    struct
-    {
-        uint8_t bgWindowEnable:1;
-        uint8_t objEnable:1;
-        uint8_t objSize:1;
-        uint8_t bgTileMapArea:1;
-        uint8_t bgWindowDataArea:1;
-        uint8_t windowEnable:1;
-        uint8_t windowTileMapArea:1;
-        uint8_t lcdEnable:1;
-    };
-    uint8_t value;
-};
+#define DEFINE_REGISTER(NAME, BODY) \
+    union NAME \
+    { \
+        struct BODY; \
+        uint8_t value; \
+    }
 
-union STAT
+DEFINE_REGISTER(LCDC,
 {
-    struct
-    {
-        uint8_t ppuMode:2;
-        uint8_t lycEqLy:1;
-        uint8_t intMode0:1;
-        uint8_t intMode1:1;
-        uint8_t intMode2:1;
-        uint8_t intLyc:1;
-        uint8_t reserved:1;
-    };
-    uint8_t value;
-};
+    uint8_t bgWindowEnable:1;
+    uint8_t objEnable:1;
+    uint8_t objSize:1;
+    uint8_t bgTileMapArea:1;
+    uint8_t bgWindowDataArea:1;
+    uint8_t windowEnable:1;
+    uint8_t windowTileMapArea:1;
+    uint8_t lcdEnable:1;
+});
+
+DEFINE_REGISTER(STAT,
+{
+    uint8_t ppuMode:2;
+    uint8_t lycEqLy:1;
+    uint8_t intMode0:1;
+    uint8_t intMode1:1;
+    uint8_t intMode2:1;
+    uint8_t intLyc:1;
+    uint8_t reserved:1;
+});
 
 using LY = Counter<uint8_t, VSYNC_LY_END>;
 
@@ -195,7 +199,7 @@ void Video::start()
             if (++io.ly == VSYNC_LY_START)
             {
                 renderFrame();
-                gb.cpu.$if |= 1 << 0;
+                gb.cpu.raiseIrq(cpu::IRQ::VBlank);
                 io.stat.ppuMode = 1;
             }
             else
@@ -358,22 +362,12 @@ void Video::IO::store(uint8_t addr, uint8_t value)
         dma.when = gb.cpu.cycles + 620;
         gb.events.scheduleEvent(dma);
     }
-    else if (addr == offsetof(IOImpl, lcdc))
-    {
-        if (value == 0)
-        {
-            //gb.cpu.exc.reportSegmentationFault(addr, true);
-        }
-    }
-    else if (addr == offsetof(IOImpl, stat))
-    {
-    }
-    return memory::GenericIO<12>::store(addr, value);
+    return BaseIO::store(addr, value);
 }
 
 uint8_t Video::IO::load(uint8_t addr) const
 {
-    return memory::GenericIO<12>::load(addr);
+    return BaseIO::load(addr);
 }
 
 }  // namespace ppu

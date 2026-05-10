@@ -196,11 +196,6 @@ def main():
 
     write_file(os.path.join(isa_dir, 'instruction_set.cpp'), instruction_set_cpp)
 
-    # for mnemo, opcodes in opcode_map.items():
-        # if mnemo != 'XOR': continue
-        # for opcode in opcodes:
-            # print(opcode)
-
 
 if __name__ == '__main__':
     main()

@@ -59,10 +59,10 @@ file(GLOB INSTRUCTIONS "src/cpu/isa/instructions/*.cpp")
 
 add_executable(${PROJECT_NAME}
 
-    src/event.cpp
     src/event_system.cpp
     src/main.cpp
 
+    src/apu/sound.cpp
     src/cpu/isa/decoder.cpp
     src/cpu/isa/instruction_set.cpp
     src/cpu/isa/opcode.cpp
@@ -95,6 +95,10 @@ add_executable(${PROJECT_NAME}
 
     ${INSTRUCTIONS}
 )
+
+if(SANITIZE)
+    set_source_files_properties(src/cpu/isa/instruction_set.cpp PROPERTIES COMPILE_OPTIONS -fno-var-tracking-assignments)
+endif()
 
 target_link_libraries(${PROJECT_NAME} fmt::fmt raylib ${READLINE_LIBRARIES})
 

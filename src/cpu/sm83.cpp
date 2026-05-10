@@ -42,8 +42,7 @@ void SM83::reset()
     ie  = 0;
     ime = 0;
 
-    stopped = false;
-
+    stopped      = false;
     halt         = false;
     cycles       = 0;
     instructions = 0;
@@ -57,7 +56,11 @@ int SM83::step()
     if (ime and $if)
     {
 #define HANDLE_IRQ(IRQ) \
-    if (ie & (1 << uint8_t(IRQ))) { handleIrq((uint8_t)IRQ); goto irqHandled; }
+    if (isIrqActive(IRQ)) \
+    { \
+        handleIrq(IRQ); \
+        goto irqHandled; \
+    }
 
         HANDLE_IRQ(IRQ::VBlank);
         HANDLE_IRQ(IRQ::LCD);
@@ -114,7 +117,7 @@ void SM83::stop()
 
 int SM83::execute(const cpu::isa::Opcode& opcode, cpu::isa::InstructionData data, bool prefixed)
 {
-    auto instruction = isa.getInstruction(prefixed, opcode.value);
+    const auto instruction = isa.getInstruction(prefixed, opcode.value);
 
     if (not instruction) [[unlikely]]
     {
@@ -122,7 +125,7 @@ int SM83::execute(const cpu::isa::Opcode& opcode, cpu::isa::InstructionData data
         return 1;
     }
 
-    isa::Immediate immediate{data.imm()};
+    const isa::Immediate immediate{data.imm()};
 
     instruction(immediate, *this);
 
@@ -140,13 +143,13 @@ int SM83::execute(const cpu::isa::Opcode& opcode, cpu::isa::InstructionData data
     return 0;
 }
 
-void SM83::handleIrq(uint8_t irq)
+void SM83::handleIrq(IRQ irq)
 {
-    $if &= ~(1 << irq);
+    clearIrq(irq);
     ime = 0;
     sp -= 2;
     mem.store16(sp, pc - halt);
-    pc = 0x40 + 0x08 * irq;
+    pc = 0x40 + 0x08 * uint8_t(irq);
     cycles += IRQ_CYCLES;
     halt = false;
 }

@@ -15,7 +15,9 @@ struct Video
     void start();
     void stop();
 
-    struct IO : memory::GenericIO<12>
+    using BaseIO = memory::GenericIO<0xff4c - 0xff40>;
+
+    struct IO : BaseIO
     {
         void store(uint8_t addr, uint8_t value);
         uint8_t load(uint8_t addr) const;

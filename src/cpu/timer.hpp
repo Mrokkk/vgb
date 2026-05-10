@@ -37,7 +37,6 @@ struct Timer
     };
 
 private:
-    void scheduleDiv(size_t cycles);
     void scheduleTima(size_t cycles);
 };
 

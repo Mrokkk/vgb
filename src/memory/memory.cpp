@@ -73,20 +73,25 @@ uint8_t Memory::load8(uint16_t addr) const
         MEMORY_RANGE(OAM):
             return gb.vid.oam.load(addr - Map::OAM.start);
 
+#define IO_LOAD(MEM, START, END) \
+        if (addr >= START and addr <= END) \
+        { \
+            return MEM.load(addr - START); \
+        }
+
         MEMORY_RANGE(IO):
-            if (addr >= 0xff40 and addr <= 0xff46)
-            {
-                return gb.vid.io.load(addr - 0x40);
-            }
-            else if (addr >= 0xff04 and addr <= 0xff07)
-            {
-                return gb.cpu.timer.load(addr - 0xff04);
-            }
-            else if (addr == 0xff05)
+            if (addr == 0xff05)
             {
                 return gb.cpu.$if;
             }
-            return load(mIo, addr - 0xff00);
+            if (addr == 0xff00)
+            {
+                return 0xff;
+            }
+            IO_LOAD(gb.cpu.timer, 0xff04, 0xff07);
+            IO_LOAD(gb.snd.io, 0xff10, 0xff3f);
+            IO_LOAD(gb.vid.io, 0xff40, 0xff4b);
+            break;
 
         GENERIC_LOAD(HRAM, mHRam);
 
@@ -126,32 +131,43 @@ void Memory::store8(uint16_t addr, uint8_t val)
         GENERIC_STORE(BANKED_WRAM, mSwitchableWRam);
 
         MEMORY_RANGE(OAM):
-            fmt::println("OAM[{:04x}] = {:02x}", addr, val);
             return gb.vid.oam.store(addr - Map::OAM.start, val);
 
+#define IO_STORE(MEM, START, END) \
+            if (addr >= START and addr <= END) \
+            { \
+                return MEM.store(addr - START, val); \
+            }
+
         MEMORY_RANGE(IO):
+            if (addr == 0xff00)
+            {
+                return;
+            }
             if (addr == 0xff50 and val > 0)
             {
                 mBootRomEnabled = false;
+                return;
             }
-            else if (addr >= 0xff04 and addr <= 0xff07)
+            if (addr >= 0xff01 and addr <= 0xff02)
             {
-                return gb.cpu.timer.store(addr - 0xff04, val);
+                // Serial com, ignore
+                return;
             }
-            else if (addr == 0xff0f)
+            if (addr == 0xff0f)
             {
                 gb.cpu.$if = val & 0x1f;
+                return;
             }
-            else if (addr >= 0xff40 and addr <= 0xff46)
-            {
-                return gb.vid.io.store(addr - 0x40, val);
-            }
-            return store(mIo, addr - 0xff00, val);
+            IO_STORE(gb.cpu.timer, 0xff04, 0xff07);
+            IO_STORE(gb.snd.io, 0xff10, 0xff3f);
+            IO_STORE(gb.vid.io, 0xff40, 0xff4b);
+            break;
 
         GENERIC_STORE(HRAM, mHRam);
 
         case 0xffff:
-            gb.cpu.ie = val;
+            gb.cpu.ie = val & 0x1f;
             return;
     }
 

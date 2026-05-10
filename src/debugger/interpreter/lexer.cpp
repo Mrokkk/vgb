@@ -300,9 +300,9 @@ static const Tokenhandlers handlers = {
     identifier,
 };
 
-std::expected<Tokens, std::string> parse(const std::string& code)
+std::expected<Tokens, std::string> parse(const std::string_view& code)
 {
-    LexerState state{.current = code.c_str()};
+    LexerState state{.current = code.data()};
 
     while (peek(state))
     {

@@ -43,7 +43,7 @@ struct Token
 
 using Tokens = std::vector<Token>;
 
-std::expected<Tokens, std::string> parse(const std::string& code);
+std::expected<Tokens, std::string> parse(const std::string_view& code);
 
 utils::Buffer& operator<<(utils::Buffer& buf, const Token::Type type);
 utils::Buffer& operator<<(utils::Buffer& buf, const Token& token);

@@ -86,17 +86,32 @@ struct SM83
     int execute(const isa::Opcode& opcode, isa::InstructionData data, bool prefixed);
     void stop();
 
+    void raiseIrq(IRQ irq)
+    {
+        $if |= 1 << uint8_t(irq);
+    }
+
+    void clearIrq(IRQ irq)
+    {
+        $if &= ~(1 << uint8_t(irq));
+    }
+
+    bool isIrqActive(IRQ irq) const
+    {
+        return ($if & (1 << uint8_t(irq))) == (1 << uint8_t(irq));
+    }
+
+private:
+    void handleIrq(IRQ irq);
+    void handleException();
+
+public:
     union
     {
         SM83_REGISTERS;
         Regs regs;
     };
 
-private:
-    void handleIrq(uint8_t irq);
-    void handleException();
-
-public:
     Regs                 lastRegs;
     isa::InstructionData cache;
     Exception            exc;

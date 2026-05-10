@@ -37,7 +37,7 @@ std::string format_to_string(format_string<Args...> fmt, Args&&... args)
 namespace debugger
 {
 
-std::map<std::string_view, std::string_view> aliases = {
+static const std::map<std::string_view, std::string_view> aliases = {
     {"b",    "break"},
     {"c",    "continue"},
     {"cont", "continue"},
@@ -92,7 +92,7 @@ struct CommandData
 
 static std::expected<CommandData, std::string> parseCommand(const std::string_view& line)
 {
-    auto result = interpreter::parse(std::string(line));
+    auto result = interpreter::parse(line);
 
     if (not result) [[unlikely]]
     {
@@ -110,7 +110,7 @@ static std::expected<CommandData, std::string> parseCommand(const std::string_vi
 
     if (aliases.contains(commandStr))
     {
-        commandStr = aliases[commandStr];
+        commandStr = aliases.at(commandStr);
     }
 
     const auto command = interpreter::commands.find(commandStr);
@@ -154,6 +154,10 @@ void runCpu(State& state)
                 state.stopped = true;
                 break;
             }
+            else
+            {
+                state.prevBreakpoint = -1;
+            }
         }
 
         if (state.cpu.step())
@@ -179,6 +183,8 @@ void main()
         .prompt = fmt::format_to_string("{} ", fmt::styled("(vgb)", fmt::fg(fmt::terminal_color::cyan))),
     };
 
+    state.cpu.timer.start();
+
     while (1)
     {
         auto res = sys::readLineFromStdin(state.prompt);
@@ -202,7 +208,7 @@ void main()
             res = state.prevLine;
         }
 
-        auto parsed = parseCommand(*res);
+        auto parsed = parseCommand(std::string(res.value()));
 
         if (not parsed) [[unlikely]]
         {

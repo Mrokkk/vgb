@@ -1,6 +1,8 @@
 #include "event_system.hpp"
 
 #include "event.hpp"
+#include "fmt/base.h"
+#include <cstdlib>
 
 EventSystem::EventSystem()
     : mHead(new Event{})
@@ -65,8 +67,15 @@ void EventSystem::scheduleEvent(Event& event)
 {
     Event* cur = mHead->next;
 
+    int iteration = 0;
+
     while (cur != mHead)
     {
+        if (iteration == 128) [[unlikely]]
+        {
+            fmt::println("Bug in EventSystem; infinite loop detected");
+            std::abort();
+        }
         if (event.when < cur->when or (event.when == cur->when and event.prio > cur->prio))
         {
             auto prev = cur->prev;
@@ -81,6 +90,7 @@ void EventSystem::scheduleEvent(Event& event)
         }
 
         cur = cur->next;
+        iteration++;
     }
 
     auto last = mHead->prev;

@@ -18,6 +18,10 @@ void Timer::start()
     divEvent.callback =
         [this](size_t)
         {
+            if (div == 255)
+            {
+                gb.cpu.raiseIrq(cpu::IRQ::Timer);
+            }
             div++;
         };
     gb.events.scheduleEvent(divEvent);
@@ -53,19 +57,6 @@ void Timer::store(uint16_t addr, uint8_t value)
 uint8_t Timer::load(uint16_t addr) const
 {
     return values[addr];
-}
-
-void Timer::scheduleDiv(size_t cycles)
-{
-    (void)cycles;
-    //gb.events.scheduleEvent(
-        //cycles + 256,
-        //[this](size_t cycles)
-        //{
-            //div++;
-            //scheduleDiv(cycles);
-            //return 0;
-        //});
 }
 
 void Timer::scheduleTima(size_t cycles)
