@@ -10,6 +10,8 @@
 #include <fmt/color.h>
 #include <fmt/format.h>
 
+#include "config.hpp"
+#include "cpu/printers.hpp"
 #include "cpu/sm83.hpp"
 #include "debugger/interpreter/command.hpp"
 #include "debugger/interpreter/commands.hpp"
@@ -19,6 +21,7 @@
 #include "debugger/state.hpp"
 #include "game_boy.hpp"
 #include "sys/system.hpp"
+#include "utils/colors.hpp"
 #include "utils/string.hpp"
 
 namespace fmt
@@ -162,18 +165,31 @@ void runCpu(State& state)
 
         if (state.cpu.step())
         {
+            state.stopped = true;
             break;
         }
+    }
+    if (state.cpu.exc)
+    {
+        fmt::println(COLOR_RED "Exception raised:" COLOR_RESET " {}", state.cpu.exc);
     }
     printInstruction(state.cpu);
 }
 
-void main()
+void main(const void* cartridge, const Config& config)
 {
+    sys::stopSupervision();
+
+    gb.cpu.mem.loadCartridge(cartridge);
+    gb.vid.start(config);
+
+    if (config.skipBootRom)
+    {
+        gb.skipBootRom();
+    }
+
     fmt::println("Debugger mode");
     fmt::println("For help, type \"help\"");
-
-    sys::stopSupervision();
 
     State state{
         .cpu = gb.cpu,
@@ -182,8 +198,6 @@ void main()
         .prevBreakpoint = -1,
         .prompt = fmt::format_to_string("{} ", fmt::styled("(vgb)", fmt::fg(fmt::terminal_color::cyan))),
     };
-
-    state.cpu.timer.start();
 
     while (1)
     {
@@ -228,6 +242,8 @@ void main()
             runCpu(state);
         }
     }
+
+    gb.vid.stop();
 }
 
 }  // namespace debugger

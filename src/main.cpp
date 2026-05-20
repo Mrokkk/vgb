@@ -1,9 +1,9 @@
+#include <argh.h>
 #include <fmt/base.h>
 
-#include "cpu/sm83.hpp"
 #include "debugger/main.hpp"
+#include "config.hpp"
 #include "game_boy.hpp"
-#include "memory/memory.hpp"
 #include "sys/system.hpp"
 
 GameBoy gb;
@@ -11,36 +11,38 @@ GameBoy gb;
 int main(int argc, char* argv[])
 {
     sys::initialize();
+    argh::parser cmdl(argc, argv);
 
-    if (argc < 2)
+    if (cmdl.size() != 2)
     {
-        fmt::println(stderr, "Incorrect arguments");
+        fmt::println(stderr, "Expected one positional argument, got {}", cmdl.size() - 1);
         sys::finalize();
         return EXIT_FAILURE;
     }
 
-    auto mappedRom = sys::mapFile(argv[1]);
+    const Config config{
+        .cartridgePath = cmdl[1],
+        .skipBootRom = cmdl[{"-f", "--skip-boot"}],
+        .useDebugger = cmdl[{"-f", "--skip-boot"}],
+    };
+
+    auto mappedRom = sys::mapFile(config.cartridgePath.c_str());
 
     if (not mappedRom) [[unlikely]]
     {
-        fmt::println(stderr, "Cannot map file: {}", mappedRom.error());
+        fmt::println(stderr, "{}: cannot map: {}", argv[1], mappedRom.error());
         sys::finalize();
         return EXIT_FAILURE;
     }
 
-    gb.cpu.mem.loadCartridge(mappedRom->ptr);
-    gb.vid.start();
-
-    if (0)
+    if (config.useDebugger)
     {
-        gb.cpu.run();
+        debugger::main(mappedRom->ptr, config);
     }
     else
     {
-        debugger::main();
+        gb.run(mappedRom->ptr, config);
     }
-
-    gb.vid.stop();
 
     sys::finalize();
 

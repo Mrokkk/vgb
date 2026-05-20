@@ -2,6 +2,7 @@
 
 #include <cstddef>
 
+#include "fwd.hpp"
 #include "memory/generic.hpp"
 
 namespace ppu
@@ -12,8 +13,9 @@ struct Video
     Video();
     ~Video();
 
-    void start();
+    void start(const Config& config);
     void stop();
+    void reset();
 
     using BaseIO = memory::GenericIO<0xff4c - 0xff40>;
 
@@ -32,10 +34,13 @@ struct Video
 
 private:
     struct IOImpl;
+    void init();
     void renderFrame();
     void scheduleHsync(size_t cycles);
 
     IOImpl& getIo();
+
+    bool mGraphical;
 };
 
 }  // namespace ppu

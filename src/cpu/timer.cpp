@@ -1,30 +1,48 @@
 #include "timer.hpp"
 
+#include <cstring>
+
 #include "event.hpp"
 #include "game_boy.hpp"
 
 namespace cpu
 {
 
-Event divEvent{
-    .prio = 0,
-    .type = Event::Repeating,
-    .when = 256,
+static Event divEvent = Event::repeating({
+    .prio   = 0,
     .period = 256,
-};
+});
+
+static Event timaEvent = Event::repeating({
+    .prio   = 0,
+    .period = 0,
+});
 
 void Timer::start()
 {
-    divEvent.callback =
+    divEvent.setCallback(
         [this](size_t)
         {
-            if (div == 255)
+            div++;
+        });
+
+    timaEvent.setCallback(
+        [this](size_t)
+        {
+            if (++tima == 0)
             {
+                tima = tma;
                 gb.cpu.raiseIrq(cpu::IRQ::Timer);
             }
-            div++;
-        };
-    gb.events.scheduleEvent(divEvent);
+        });
+
+    gb.events.scheduleEvent(divEvent, 256);
+}
+
+void Timer::reset()
+{
+    memset(values, 0, sizeof(values));
+    start();
 }
 
 void Timer::store(uint16_t addr, uint8_t value)
@@ -47,7 +65,7 @@ void Timer::store(uint16_t addr, uint8_t value)
             tac.value = value;
             if (tac.enable)
             {
-                //scheduleTima(gb.cpu.cycles);
+                scheduleTima(gb.cpu.cycles);
             }
             return;
     }
@@ -61,27 +79,20 @@ uint8_t Timer::load(uint16_t addr) const
 
 void Timer::scheduleTima(size_t cycles)
 {
-    size_t duration = 256;
+    size_t duration;
+
     switch (tac.clockSelect)
     {
         case 0: duration = 256 * 4; break;
         case 1: duration = 4 * 4; break;
         case 2: duration = 16 * 4; break;
         case 3: duration = 64 * 4; break;
+        default: duration = 256;
     }
-    (void)(duration and cycles);
-    //gb.events.scheduleEvent(
-        //cycles + duration,
-        //[this](size_t cycles)
-        //{
-            //if (++tima == 0)
-            //{
-                //tima = tma;
-                //gb.cpu.$if |= 1 << 2;
-            //}
-            //scheduleTima(cycles);
-            //return 0;
-        //});
+
+    gb.events.cancelEvent(timaEvent);
+    timaEvent.setPeriod(duration);
+    gb.events.scheduleEvent(timaEvent, cycles + duration);
 }
 
 }  // namespace cpu

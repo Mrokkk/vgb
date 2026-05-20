@@ -2,12 +2,12 @@
 
 #include <fmt/base.h>
 
+#include "cpu/exception.hpp"
 #include "cpu/isa/opcode.hpp"
-#include "cpu/isa/printers.hpp"
-#include "cpu/printers.hpp"
 #include "cpu/register.hpp"
+#include "event.hpp"
+#include "event_system.hpp"
 #include "game_boy.hpp"
-#include "utils/colors.hpp"
 
 namespace cpu
 {
@@ -18,35 +18,38 @@ enum : uint8_t
     IRQ_CYCLES = 20,
 };
 
+static Event ei = Event::oneShot({
+    .prio = 0,
+    .callback =
+        [](size_t)
+        {
+            gb.cpu.ime = 1;
+        }
+});
+
 SM83::SM83()
 {
-    reset();
+    clear();
 }
 
 SM83::~SM83() = default;
 
-void SM83::run()
+std::expected<bool, Exception> SM83::run()
 {
-    timer.start();
     while (step() == 0 and not stopped);
+
+    if (exc) [[unlikely]]
+    {
+        return std::unexpected(exc);
+    }
+
+    return true;
 }
 
 void SM83::reset()
 {
-    af  = 0;
-    bc  = 0;
-    de  = 0;
-    hl  = 0;
-    pc  = 0;
-    sp  = 0;
-    ie  = 0;
-    ime = 0;
-
-    stopped      = false;
-    halt         = false;
-    cycles       = 0;
-    instructions = 0;
-    exc          = Exception::None;
+    clear();
+    mem.reset();
 }
 
 int SM83::step()
@@ -71,18 +74,14 @@ int SM83::step()
 
     if (halt)
     {
-        if (ime == 0) [[unlikely]]
-        {
-            fmt::println("CPU is halted with IME == 0");
-            return 1;
-        }
-
         cycles = gb.events.performNextEvent();
         return 0;
     }
 
 irqHandled:
     bool prefixed = false;
+
+    const uint16_t oldPc = pc;
 
     uint8_t pcValue = cache.appendOpcodeByte(mem.load8(pc++));
 
@@ -101,7 +100,10 @@ irqHandled:
 
     if (execute(opcode, cache, prefixed)) [[unlikely]]
     {
-        handleException();
+        if (exc.type != Exception::UserInterruption)
+        {
+            pc = oldPc;
+        }
         return 1;
     }
 
@@ -113,6 +115,29 @@ irqHandled:
 void SM83::stop()
 {
     stopped = true;
+}
+
+void SM83::skipBootRom()
+{
+    af  = 0x01b0;
+    bc  = 0x0013;
+    de  = 0x00d8;
+    hl  = 0x014d;
+    sp  = 0xfffe;
+    pc  = 0x100;
+    ie  = 0x00;
+    $if = 0x00;
+    ime = 0x0;
+
+    mem.store8(0xff50, 0x01); // Disable boot ROM
+    mem.store8(0xff40, 0x91); // Enable video
+    mem.store8(0xff41, 0x85);
+}
+
+void SM83::scheduleEi()
+{
+    gb.events.cancelEvent(ei);
+    gb.events.scheduleEvent(ei, cycles + 4);
 }
 
 int SM83::execute(const cpu::isa::Opcode& opcode, cpu::isa::InstructionData data, bool prefixed)
@@ -143,6 +168,31 @@ int SM83::execute(const cpu::isa::Opcode& opcode, cpu::isa::InstructionData data
     return 0;
 }
 
+void SM83::clear()
+{
+    af  = 0;
+    bc  = 0;
+    de  = 0;
+    hl  = 0;
+    pc  = 0;
+    sp  = 0;
+    ie  = 0;
+    ime = 0;
+    $if = 0;
+
+    stopped      = false;
+    halt         = false;
+    cycles       = 0;
+    instructions = 0;
+    exc          = Exception::None;
+}
+
+bool SM83::isIrqActive(IRQ irq) const
+{
+    auto val = 1 << uint8_t(irq);
+    return ($if & val) and ($if & val) == (ie & val);
+}
+
 void SM83::handleIrq(IRQ irq)
 {
     clearIrq(irq);
@@ -152,13 +202,6 @@ void SM83::handleIrq(IRQ irq)
     pc = 0x40 + 0x08 * uint8_t(irq);
     cycles += IRQ_CYCLES;
     halt = false;
-}
-
-void SM83::handleException()
-{
-    fmt::print("\n" COLOR_RED "Exception raised" COLOR_RESET ": {}\n\n", exc);
-    fmt::print("T-cycles: {}\n", cycles);
-    fmt::print("Instructions: {}\n", instructions);
 }
 
 }  // namespace cpu

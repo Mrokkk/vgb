@@ -52,7 +52,7 @@ def define_instruction(opcode, code):
 def get_data_width(op1, op2=None):
     if not op2:
         return op1.width * 8 if op1.indirect == 'false' else 8
-    return op2.width * 8 if op2.indirect == 'false' else op1.width * 8
+    return op1.width * 8 if op1.indirect == 'false' else op2.width * 8
 
 
 def operand_to_code(op, data_width):

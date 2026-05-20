@@ -6,6 +6,18 @@ namespace apu
 Sound::Sound() = default;
 Sound::~Sound() = default;
 
+void Sound::start()
+{
+}
+
+void Sound::stop()
+{
+}
+
+void Sound::reset()
+{
+}
+
 void Sound::IO::store(uint8_t addr, uint8_t value)
 {
     (void)(addr and value);

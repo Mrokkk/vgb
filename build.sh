@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -119,7 +119,7 @@ read_flags()
             build|run|test)
                 COMMAND="${1}"
                 shift
-                ARGS=${@}
+                ARGS=("$@")
                 break
                 ;;
             *)
@@ -188,9 +188,9 @@ run_command()
 
     if [ -f /usr/bin/time ]
     then
-        /usr/bin/time -v "${command}" ${@}
+        /usr/bin/time -v "${command}" "${@}"
     else
-        "${command}" ${@}
+        "${command}" "${@}"
     fi
 
     status=$?
@@ -228,8 +228,8 @@ then
     BUILD_DIR="build"
 fi
 
+declare -a ARGS
 COMMAND=
-ARGS=
 OPTIMIZE="ON"
 LTO="OFF"
 COVERAGE="OFF"
@@ -237,7 +237,7 @@ SANITIZE="OFF"
 BUILD_TESTS="OFF"
 
 read_cache
-read_flags ${@}
+read_flags "${@}"
 regenerate_cmake
 
 run_command -e "src/cpu/isa/generate.py"
@@ -250,7 +250,7 @@ case "${COMMAND}" in
     run)
         shift
         build_target vgb
-        run_command "${BUILD_DIR}/vgb" ${ARGS}
+        run_command "${BUILD_DIR}/vgb" "${ARGS[@]}"
         ;;
     test)
         shift
@@ -260,7 +260,7 @@ case "${COMMAND}" in
             ninja tests-cov-html
         else
             build_target test
-            run_command "${BUILD_DIR}/test/test" ${ARGS}
+            run_command "${BUILD_DIR}/test" "${ARGS}"
         fi
         ;;
     *)

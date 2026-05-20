@@ -3,6 +3,6 @@
 from pygenerator import *
 
 def EI(opcode : Opcode):
-    return 'cpu.ime = 1;'
+    return 'cpu.scheduleEi();'
 
 register_instruction_generator(EI)

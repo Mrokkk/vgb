@@ -5,16 +5,16 @@ from pygenerator.isa import *
 from pygenerator.opcode import *
 
 template = """
-const uint16_t a = cpu.a;
-const uint16_t tmp = (a << 1) | cpu.f.c;
+const uint8_t a = cpu.a;
+const uint8_t tmp = (a >> 1) | (cpu.f.c << 7);
 cpu.a = tmp;
-cpu.f.c = tmp >> 8;
+cpu.f.c = a & 1;
 cpu.f.z = 0;
 cpu.f.n = 0;
 cpu.f.h = 0;
 """
 
-def RLA(opcode : Opcode):
+def RRA(opcode : Opcode):
     return template
 
-register_instruction_generator(RLA)
+register_instruction_generator(RRA)

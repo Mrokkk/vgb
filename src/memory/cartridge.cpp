@@ -1,5 +1,7 @@
 #include "cartridge.hpp"
 
+#include <cstring>
+
 #include "game_boy.hpp"
 
 namespace memory
@@ -28,13 +30,27 @@ Cartridge::~Cartridge()
     }
 }
 
-void Cartridge::initialize(uint8_t* data)
+void Cartridge::initialize(const uint8_t* data)
 {
-    mHeader = reinterpret_cast<CartridgeHeader*>(data);
+    if (mRam)
+    {
+        delete [] mRam;
+    }
+    mHeader = reinterpret_cast<const CartridgeHeader*>(data);
     mSize = romSize();
-    mRam = allocateRam(ramSize());
+    mRamSize = ramSize();
+    mRam = allocateRam(mRamSize);
     mMBC = MBC();
     mBanks = (mSize + 1) / MEMORY_BANK_SIZE;
+}
+
+void Cartridge::reset()
+{
+    if (mRam)
+    {
+        memset(mRam, 0, mRamSize);
+    }
+    mBank = 0;
 }
 
 uint8_t Cartridge::load(uint16_t addr) const
@@ -80,6 +96,24 @@ void Cartridge::store(uint16_t addr, uint8_t value)
     }
 
     gb.cpu.exc.reportSegmentationFault(addr, true);
+}
+
+uint8_t Cartridge::loadRam(uint16_t addr) const
+{
+    if (not mRam) [[unlikely]]
+    {
+        return 0xff;
+    }
+    return mRam[addr];
+}
+
+void Cartridge::storeRam(uint16_t addr, uint8_t value)
+{
+    if (not mRam) [[unlikely]]
+    {
+        return;
+    }
+    mRam[addr] = value;
 }
 
 MBC Cartridge::MBC() const

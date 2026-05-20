@@ -57,6 +57,9 @@ void printCpuRegs(const cpu::SM83& cpu)
     PRINT_REGISTER(ime, 1);
     PRINT_REGISTER(ie, 2);
     PRINT_REGISTER($if, 2);
+
+    fmt::println("  T-cycles: {}", cpu.cycles);
+    fmt::println("  instructions: {}", cpu.instructions);
 }
 
 }  // namespace debugger

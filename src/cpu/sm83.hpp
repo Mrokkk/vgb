@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 
 #include "cpu/exception.hpp"
 #include "cpu/isa/instruction_set.hpp"
@@ -80,7 +81,7 @@ struct SM83
     SM83();
     ~SM83();
 
-    void run();
+    std::expected<bool, Exception> run();
     void reset();
     int step();
     int execute(const isa::Opcode& opcode, isa::InstructionData data, bool prefixed);
@@ -89,6 +90,7 @@ struct SM83
     void raiseIrq(IRQ irq)
     {
         $if |= 1 << uint8_t(irq);
+        halt = false;
     }
 
     void clearIrq(IRQ irq)
@@ -96,14 +98,13 @@ struct SM83
         $if &= ~(1 << uint8_t(irq));
     }
 
-    bool isIrqActive(IRQ irq) const
-    {
-        return ($if & (1 << uint8_t(irq))) == (1 << uint8_t(irq));
-    }
+    void skipBootRom();
+    void scheduleEi();
 
 private:
+    void clear();
+    bool isIrqActive(IRQ irq) const;
     void handleIrq(IRQ irq);
-    void handleException();
 
 public:
     union

@@ -74,10 +74,14 @@ struct Cartridge
     Cartridge();
     ~Cartridge();
 
-    void initialize(uint8_t* data);
+    void initialize(const uint8_t* data);
+    void reset();
 
     uint8_t load(uint16_t addr) const;
     void store(uint16_t addr, uint8_t value);
+
+    uint8_t loadRam(uint16_t addr) const;
+    void storeRam(uint16_t addr, uint8_t value);
 
     uint32_t romSize() const
     {
@@ -101,14 +105,15 @@ struct Cartridge
 private:
     static uint8_t* allocateRam(size_t size);
 
-    union
+    const union
     {
-        CartridgeHeader* mHeader;
-        uint8_t*         mData;
+        const CartridgeHeader* mHeader;
+        const uint8_t*         mData;
     };
     bool     mRamEnabled;
     enum MBC mMBC;
     size_t   mSize;
+    size_t   mRamSize;
     uint32_t mBanks;
     uint32_t mBank;
     uint8_t* mRam;

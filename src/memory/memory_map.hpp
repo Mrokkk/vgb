@@ -14,6 +14,9 @@ struct MemoryRange
 #define DEFINE_MEMORY_RANGE(NAME, START, END) \
     static constexpr inline MemoryRange NAME{START, END}
 
+#define DEFINE_MEMORY_SINGLE(NAME, ADDR) \
+    static constexpr inline uint32_t NAME = ADDR
+
 struct Map
 {
     DEFINE_MEMORY_RANGE(BOOT_ROM,    0x0000, 0x0100);
@@ -25,6 +28,7 @@ struct Map
     DEFINE_MEMORY_RANGE(OAM,         0xfe00, 0xfea0);
     DEFINE_MEMORY_RANGE(IO,          0xff00, 0xff80);
     DEFINE_MEMORY_RANGE(HRAM,        0xff80, 0xffff);
+    DEFINE_MEMORY_SINGLE(IE,         0xffff);
 };
 
 }  // namespace memory

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstddef>
-
 #include "memory/generic.hpp"
 
 namespace apu
@@ -14,6 +12,7 @@ struct Sound
 
     void start();
     void stop();
+    void reset();
 
     struct IO : memory::GenericIO<0xff40 - 0xff10>
     {

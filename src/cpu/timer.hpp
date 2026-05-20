@@ -11,6 +11,8 @@ struct Timer
     constexpr static size_t inline PERIOD = 256;
 
     void start();
+    void reset();
+
     void store(uint16_t addr, uint8_t value);
     uint8_t load(uint16_t addr) const;
 

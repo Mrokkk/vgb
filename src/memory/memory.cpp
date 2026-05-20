@@ -1,5 +1,7 @@
 #include "memory.hpp"
 
+#include <cstring>
+
 #include <fmt/base.h>
 
 #include "cpu/sm83.hpp"
@@ -34,9 +36,18 @@ ALWAYS_INLINE static void store(uint8_t* arr, uint16_t addr, uint8_t data)
     arr[addr] = data;
 }
 
-void Memory::loadCartridge(void* data)
+void Memory::loadCartridge(const void* data)
 {
-    mCartridge.initialize(static_cast<uint8_t*>(data));
+    mCartridge.initialize(static_cast<const uint8_t*>(data));
+}
+
+void Memory::reset()
+{
+    mBootRomEnabled = true;
+    mCartridge.reset();
+    memset(mBaseWRam, 0, sizeof(mBaseWRam));
+    memset(mSwitchableWRam, 0, sizeof(mSwitchableWRam));
+    memset(mHRam, 0, sizeof(mHRam));
 }
 
 #define MEMORY_RANGE(RANGE) \
@@ -67,35 +78,21 @@ uint8_t Memory::load8(uint16_t addr) const
         MEMORY_RANGE(VRAM):
             return gb.vid.vram.load(addr - Map::VRAM.start);
 
+        MEMORY_RANGE(EXT_RAM):
+            return mCartridge.loadRam(addr - Map::EXT_RAM.start);
+
         GENERIC_LOAD(BASE_WRAM, mBaseWRam);
         GENERIC_LOAD(BANKED_WRAM, mSwitchableWRam);
 
         MEMORY_RANGE(OAM):
             return gb.vid.oam.load(addr - Map::OAM.start);
 
-#define IO_LOAD(MEM, START, END) \
-        if (addr >= START and addr <= END) \
-        { \
-            return MEM.load(addr - START); \
-        }
-
         MEMORY_RANGE(IO):
-            if (addr == 0xff05)
-            {
-                return gb.cpu.$if;
-            }
-            if (addr == 0xff00)
-            {
-                return 0xff;
-            }
-            IO_LOAD(gb.cpu.timer, 0xff04, 0xff07);
-            IO_LOAD(gb.snd.io, 0xff10, 0xff3f);
-            IO_LOAD(gb.vid.io, 0xff40, 0xff4b);
-            break;
+            return mIo.load(addr - Map::IO.start);
 
         GENERIC_LOAD(HRAM, mHRam);
 
-        case 0xffff:
+        case Map::IE:
             return gb.cpu.ie;
     }
 
@@ -125,6 +122,9 @@ void Memory::store8(uint16_t addr, uint8_t val)
         MEMORY_RANGE(VRAM):
             return gb.vid.vram.store(addr - Map::VRAM.start, val);
 
+        MEMORY_RANGE(EXT_RAM):
+            return mCartridge.storeRam(addr - Map::EXT_RAM.start, val);
+
         MEMORY_RANGE(BASE_WRAM):
             return store(mBaseWRam, addr - Map::BASE_WRAM.start, val);
 
@@ -133,40 +133,17 @@ void Memory::store8(uint16_t addr, uint8_t val)
         MEMORY_RANGE(OAM):
             return gb.vid.oam.store(addr - Map::OAM.start, val);
 
-#define IO_STORE(MEM, START, END) \
-            if (addr >= START and addr <= END) \
-            { \
-                return MEM.store(addr - START, val); \
-            }
-
         MEMORY_RANGE(IO):
-            if (addr == 0xff00)
-            {
-                return;
-            }
             if (addr == 0xff50 and val > 0)
             {
                 mBootRomEnabled = false;
                 return;
             }
-            if (addr >= 0xff01 and addr <= 0xff02)
-            {
-                // Serial com, ignore
-                return;
-            }
-            if (addr == 0xff0f)
-            {
-                gb.cpu.$if = val & 0x1f;
-                return;
-            }
-            IO_STORE(gb.cpu.timer, 0xff04, 0xff07);
-            IO_STORE(gb.snd.io, 0xff10, 0xff3f);
-            IO_STORE(gb.vid.io, 0xff40, 0xff4b);
-            break;
+            return mIo.store(addr - Map::IO.start, val);
 
         GENERIC_STORE(HRAM, mHRam);
 
-        case 0xffff:
+        case Map::IE:
             gb.cpu.ie = val & 0x1f;
             return;
     }

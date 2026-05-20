@@ -1,14 +1,14 @@
 #include "event_system.hpp"
 
-#include "event.hpp"
-#include "fmt/base.h"
+#include <cassert>
 #include <cstdlib>
 
+#include "event.hpp"
+#include "fmt/base.h"
+
 EventSystem::EventSystem()
-    : mHead(new Event{})
+    : mHead(new Event())
 {
-    mHead->next = mHead;
-    mHead->prev = mHead;
 }
 
 EventSystem::~EventSystem()
@@ -29,13 +29,12 @@ void EventSystem::update(size_t cycles)
 
         cancelEvent(*cur);
 
-        if (cur->type == Event::Repeating)
+        if (cur->type == Event::Type::Repeating)
         {
-            cur->when = cycles + cur->period;
-            scheduleEvent(*cur);
+            scheduleEvent(*cur, cycles + cur->data.period);
         }
 
-        cur->callback(cycles);
+        cur->data.callback(cycles);
     }
 }
 
@@ -52,19 +51,22 @@ size_t EventSystem::performNextEvent()
 
     cancelEvent(*event);
 
-    if (event->type == Event::Repeating)
+    if (event->type == Event::Type::Repeating)
     {
-        event->when = cycles + event->period;
-        scheduleEvent(*event);
+        scheduleEvent(*event, cycles + event->data.period);
     }
 
-    event->callback(cycles);
+    event->data.callback(cycles);
 
     return cycles;
 }
 
-void EventSystem::scheduleEvent(Event& event)
+void EventSystem::scheduleEvent(Event& event, size_t when)
 {
+    assert(event.data.callback);
+
+    event.when = when;
+
     Event* cur = mHead->next;
 
     int iteration = 0;
@@ -76,7 +78,7 @@ void EventSystem::scheduleEvent(Event& event)
             fmt::println("Bug in EventSystem; infinite loop detected");
             std::abort();
         }
-        if (event.when < cur->when or (event.when == cur->when and event.prio > cur->prio))
+        if (event.when < cur->when or (event.when == cur->when and event.data.prio > cur->data.prio))
         {
             auto prev = cur->prev;
             auto next = cur;
@@ -106,4 +108,12 @@ void EventSystem::cancelEvent(Event& event)
     auto next = event.next;
     prev->next = next;
     next->prev = prev;
+}
+
+void EventSystem::reset()
+{
+    while (mHead->next != mHead)
+    {
+        cancelEvent(*mHead->next);
+    }
 }

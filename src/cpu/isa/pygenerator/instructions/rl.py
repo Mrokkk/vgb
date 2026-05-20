@@ -5,8 +5,8 @@ from pygenerator.isa import *
 from pygenerator.opcode import *
 
 template = """
-const auto operand = {{ operand }};
-const int tmp = (operand << 1) | cpu.f.c;
+const uint16_t operand = {{ operand }};
+const uint16_t tmp = (operand << 1) | cpu.f.c;
 {{ store }};
 cpu.f.c = tmp >> 8;
 cpu.f.z = not (tmp & 0xff);

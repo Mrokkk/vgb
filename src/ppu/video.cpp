@@ -1,10 +1,12 @@
 #include "video.hpp"
 
 #include <cstdio>
+#include <cstring>
 
 #include <fmt/base.h>
 #include <raylib.h>
 
+#include "config.hpp"
 #include "cpu/sm83.hpp"
 #include "event.hpp"
 #include "game_boy.hpp"
@@ -159,18 +161,14 @@ Video::~Video() = default;
 static Image screenImage;
 static Texture2D screenTexture;
 
-static Event hsync{
+static Event hsync = Event::repeating({
     .prio = 0,
-    .type = Event::Repeating,
-    .when = HSYNC_DURATION,
     .period = HSYNC_DURATION,
-};
+});
 
-static Event dma{
+static Event dma = Event::oneShot({
     .prio = 0,
-    .type = Event::OneShot,
-    .when = HSYNC_DURATION,
-};
+});
 
 #define RENDER() \
     for (int i = (BeginDrawing(), 0); i == 0; i = (EndDrawing(), 1))
@@ -180,7 +178,44 @@ ALWAYS_INLINE Video::IOImpl& Video::getIo()
     return *reinterpret_cast<Video::IOImpl*>(io.data);
 }
 
-void Video::start()
+void Video::start(const Config& config)
+{
+    init();
+
+    if (config.videoConfig == VideoConfig::Graphical)
+    {
+        mGraphical = true;
+        SetTraceLogCallback(raylibLogFormat);
+        InitWindow(GB_LCD_RESX * SCALING, GB_LCD_RESY * SCALING, "GameBoy");
+
+        SetTargetFPS(60);
+
+        screenImage = GenImageColor(GB_LCD_RESX, GB_LCD_RESY, WHITE);
+        screenTexture = LoadTextureFromImage(screenImage);
+
+        RENDER()
+        {
+            ClearBackground(BLACK);
+        }
+    }
+}
+
+void Video::stop()
+{
+    UnloadTexture(screenTexture);
+    UnloadImage(screenImage);
+    CloseWindow();
+}
+
+void Video::reset()
+{
+    memset(io.data, 0, sizeof(io.data));
+    memset(oam.data, 0, sizeof(oam.data));
+    memset(vram.data, 0, sizeof(vram.data));
+    init();
+}
+
+void Video::init()
 {
     auto& ioRo = *reinterpret_cast<IOImpl*>(io.roMasks);
 
@@ -192,13 +227,16 @@ void Video::start()
     auto& io = getIo();
     io.ly = VSYNC_LY_START - 1;
 
-    hsync.callback =
+    hsync.setCallback(
         [this](size_t)
         {
             auto& io = getIo();
             if (++io.ly == VSYNC_LY_START)
             {
-                renderFrame();
+                if (mGraphical)
+                {
+                    renderFrame();
+                }
                 gb.cpu.raiseIrq(cpu::IRQ::VBlank);
                 io.stat.ppuMode = 1;
             }
@@ -206,9 +244,9 @@ void Video::start()
             {
                 io.stat.ppuMode = 3;
             }
-        };
+        });
 
-    dma.callback =
+    dma.setCallback(
         [this](size_t)
         {
             auto& io = getIo();
@@ -218,34 +256,9 @@ void Video::start()
             {
                 oam.data[i] = gb.cpu.mem.load8(src + i);
             }
-        };
+        });
 
-    gb.events.scheduleEvent(hsync);
-
-    SetTraceLogCallback(raylibLogFormat);
-    InitWindow(GB_LCD_RESX * SCALING, GB_LCD_RESY * SCALING, "GameBoy");
-
-    SetTargetFPS(60);
-
-    screenImage = GenImageColor(GB_LCD_RESX, GB_LCD_RESY, WHITE);
-    screenTexture = LoadTextureFromImage(screenImage);
-
-    RENDER()
-    {
-        ClearBackground(BLACK);
-    }
-
-    RENDER()
-    {
-        ClearBackground(BLACK);
-    }
-}
-
-void Video::stop()
-{
-    UnloadTexture(screenTexture);
-    UnloadImage(screenImage);
-    CloseWindow();
+    gb.events.scheduleEvent(hsync, HSYNC_DURATION);
 }
 
 void Video::renderFrame()
@@ -359,8 +372,7 @@ void Video::IO::store(uint8_t addr, uint8_t value)
 {
     if (addr == offsetof(IOImpl, dma))
     {
-        dma.when = gb.cpu.cycles + 620;
-        gb.events.scheduleEvent(dma);
+        gb.events.scheduleEvent(dma, gb.cpu.cycles + 620);
     }
     return BaseIO::store(addr, value);
 }

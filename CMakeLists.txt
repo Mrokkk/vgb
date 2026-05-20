@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.12)
 
 project(vgb CXX)
 
-option(SANITIZE "Enable ASan and UBsan" OFF)
+set(CMAKE_BUILD_TYPE Debug)
 
+option(SANITIZE "Enable ASan and UBsan" OFF)
 message(STATUS "Enable ASan and UBsan: ${SANITIZE}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -32,8 +33,24 @@ FetchContent_Declare(raylib
     GIT_TAG master
 )
 
+set(DOCTEST_VERSION v2.4.11)
+
+FetchContent_Declare(doctest
+    URL  https://raw.githubusercontent.com/doctest/doctest/${DOCTEST_VERSION}/doctest/doctest.h
+    DOWNLOAD_NO_EXTRACT TRUE
+)
+
+FetchContent_Declare(argh
+    GIT_REPOSITORY https://github.com/adishavit/argh
+    GIT_TAG master
+)
+
 FetchContent_MakeAvailable(fmt)
 FetchContent_MakeAvailable(raylib)
+FetchContent_MakeAvailable(doctest)
+FetchContent_MakeAvailable(argh)
+
+set(DOCTEST_INCLUDE_DIR ${doctest_SOURCE_DIR})
 
 include(FindPkgConfig)
 pkg_check_modules(BACKTRACE REQUIRED libbacktrace)
@@ -57,10 +74,16 @@ include_directories(src ${BACKTRACE_INCLUDE_DIRS})
 
 file(GLOB INSTRUCTIONS "src/cpu/isa/instructions/*.cpp")
 
-add_executable(${PROJECT_NAME}
+set(COMMON_LIBRARIES
 
-    src/event_system.cpp
-    src/main.cpp
+    argh
+    fmt::fmt
+    raylib
+    ${READLINE_LIBRARIES}
+
+)
+
+add_library(emulator OBJECT
 
     src/apu/sound.cpp
     src/cpu/isa/decoder.cpp
@@ -70,21 +93,10 @@ add_executable(${PROJECT_NAME}
     src/cpu/printers.cpp
     src/cpu/sm83.cpp
     src/cpu/timer.cpp
-    src/debugger/commands/break.cpp
-    src/debugger/commands/continue.cpp
-    src/debugger/commands/crash.cpp
-    src/debugger/commands/help.cpp
-    src/debugger/commands/registers.cpp
-    src/debugger/commands/set.cpp
-    src/debugger/commands/step.cpp
-    src/debugger/commands/watch.cpp
-    src/debugger/interpreter/command.cpp
-    src/debugger/interpreter/commands.cpp
-    src/debugger/interpreter/lexer.cpp
-    src/debugger/interpreter/lexer_printers.cpp
-    src/debugger/main.cpp
-    src/debugger/printer.cpp
+    src/event_system.cpp
+    src/game_boy.cpp
     src/memory/cartridge.cpp
+    src/memory/io.cpp
     src/memory/memory.cpp
     src/ppu/video.cpp
     src/sys/posix.cpp
@@ -96,11 +108,46 @@ add_executable(${PROJECT_NAME}
     ${INSTRUCTIONS}
 )
 
+add_library(debugger OBJECT
+
+    src/debugger/commands/break.cpp
+    src/debugger/commands/continue.cpp
+    src/debugger/commands/crash.cpp
+    src/debugger/commands/help.cpp
+    src/debugger/commands/registers.cpp
+    src/debugger/commands/reset.cpp
+    src/debugger/commands/set.cpp
+    src/debugger/commands/step.cpp
+    src/debugger/commands/watch.cpp
+    src/debugger/interpreter/command.cpp
+    src/debugger/interpreter/commands.cpp
+    src/debugger/interpreter/lexer.cpp
+    src/debugger/interpreter/lexer_printers.cpp
+    src/debugger/main.cpp
+    src/debugger/printer.cpp
+
+)
+
+target_link_libraries(emulator PUBLIC ${COMMON_LIBRARIES})
+target_link_libraries(debugger PUBLIC fmt::fmt)
+
+add_executable(${PROJECT_NAME} src/main.cpp)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE emulator debugger)
+
+add_executable(test
+
+    test/instruction_tests.cpp
+    test/main.cpp
+)
+
+target_link_libraries(test PUBLIC emulator)
+
 if(SANITIZE)
     set_source_files_properties(src/cpu/isa/instruction_set.cpp PROPERTIES COMPILE_OPTIONS -fno-var-tracking-assignments)
 endif()
 
-target_link_libraries(${PROJECT_NAME} fmt::fmt raylib ${READLINE_LIBRARIES})
+target_include_directories(test PRIVATE ${DOCTEST_INCLUDE_DIR})
 
 add_custom_target(run
     COMMAND "${CMAKE_BINARY_DIR}/${PROJECT_NAME}"

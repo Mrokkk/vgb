@@ -6,6 +6,9 @@ from pygenerator.opcode import *
 
 template = """
 {{ operand }} = cpu.mem.load16(cpu.sp);
+{%- if opcode.operands[0].name == "AF" %}
+cpu.f.value &= 0xf0;
+{%- endif %}
 cpu.sp += 2;
 """
 

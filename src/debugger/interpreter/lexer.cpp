@@ -26,7 +26,7 @@ struct TokenMapping
     TokenHandler        handler;
 };
 
-using Tokenhandlers = std::vector<TokenHandler>;
+using TokenHandlers = std::vector<TokenHandler>;
 
 static char peek(LexerState& state)
 {
@@ -144,7 +144,7 @@ static bool intLiteral(LexerState& state)
         return false;
     }
 
-    if (peek(state) == 'x')
+    if (c == '0' and peek(state) == 'x')
     {
         advance(state);
 
@@ -277,7 +277,7 @@ static bool booleanLiteral(LexerState& state)
     return false;
 }
 
-static const Tokenhandlers handlers = {
+static const TokenHandlers handlers = {
     space,
     comment,
     singleChar('\n', Token::Type::Newline),

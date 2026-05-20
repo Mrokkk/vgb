@@ -5,8 +5,8 @@ from pygenerator.isa import *
 from pygenerator.opcode import *
 
 template = """
-uint16_t a = cpu.a;
-uint16_t tmp = (a << 1) | (a >> 7);
+const uint8_t a = cpu.a;
+const uint8_t tmp = (a << 1) | (a >> 7);
 cpu.a = tmp;
 cpu.f.c = cpu.a & 1;
 cpu.f.z = 0;

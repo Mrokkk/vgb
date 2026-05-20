@@ -3,5 +3,8 @@ compile_commands.json
 __pycache__
 build/
 games/
+test/cpu_instrs/
+test/instr_timing/
+test/interrupt_time/
 src/cpu/isa/instructions/*.cpp
 src/cpu/isa/instruction_set.cpp

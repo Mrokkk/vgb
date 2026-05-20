@@ -57,7 +57,7 @@ def get_operand(operand, mnemo):
         op.value = hex(int(name[1:], 16))
         op.width = 1
     elif name in ('A', 'B', 'C', 'D', 'E', 'F', 'H', 'L'):
-        if name == 'C' and mnemo in ('JP', 'JR'): # Hack for JP/JR C, Addr16
+        if name == 'C' and mnemo in ('JP', 'JR', 'CALL', 'RET'): # Hack for JP/JR C, Addr16
             op.name = f'Flag{name}'
             op.size = 0
             op.width = 0

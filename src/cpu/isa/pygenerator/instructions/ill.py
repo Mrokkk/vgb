@@ -5,6 +5,6 @@ from pygenerator.isa import *
 from pygenerator.opcode import *
 
 def ILL(opcode : Opcode):
-    return 'cpu.exc = Exception::InvalidOpcode;'
+    return f'cpu.exc.reportInvalidOpcode({opcode.value});'
 
 register_instruction_generator(ILL)

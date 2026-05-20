@@ -70,7 +70,7 @@ struct Exception
         type = Halt;
     }
 
-    Type     type;
+    Type     type = Type::None;
     union
     {
         struct
@@ -78,6 +78,10 @@ struct Exception
             uint16_t addr;
             bool     write;
         } segmentationFault;
+        struct
+        {
+            uint16_t value;
+        } opcode;
         uint16_t value;
     };
 };
