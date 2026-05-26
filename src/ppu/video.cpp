@@ -53,8 +53,11 @@ enum
     GB_TILE_DATA_RESY = 256,
     SCALING           = 5,
 
+    GB_OAM_SIZE       = 0xa0,
+
     FRAME_DURATION    = 70224,
     HSYNC_DURATION    = 456,
+    DMA_DURATION      = 620,
     VSYNC_LY_START    = 144,
     VSYNC_LY_END      = 154,
 };
@@ -148,10 +151,10 @@ struct Video::IOImpl
     uint8_t wx;
 };
 
-Color colors[4] = {
+static const Color colors[] = {
     {0xff, 0xff, 0xff, 0xff},
-    {0x00, 0x00, 0x00, 0xff},
-    {0x00, 0x00, 0x00, 0xff},
+    {0x80, 0x80, 0x80, 0xff},
+    {0x50, 0x50, 0x50, 0xff},
     {0x00, 0x00, 0x00, 0xff},
 };
 
@@ -180,23 +183,13 @@ ALWAYS_INLINE Video::IOImpl& Video::getIo()
 
 void Video::start(const Config& config)
 {
-    init();
+    mGraphical = config.videoConfig == VideoConfig::Graphical;
 
-    if (config.videoConfig == VideoConfig::Graphical)
+    initPpu();
+
+    if (mGraphical)
     {
-        mGraphical = true;
-        SetTraceLogCallback(raylibLogFormat);
-        InitWindow(GB_LCD_RESX * SCALING, GB_LCD_RESY * SCALING, "GameBoy");
-
-        SetTargetFPS(60);
-
-        screenImage = GenImageColor(GB_LCD_RESX, GB_LCD_RESY, WHITE);
-        screenTexture = LoadTextureFromImage(screenImage);
-
-        RENDER()
-        {
-            ClearBackground(BLACK);
-        }
+        initRenderer();
     }
 }
 
@@ -212,10 +205,21 @@ void Video::reset()
     memset(io.data, 0, sizeof(io.data));
     memset(oam.data, 0, sizeof(oam.data));
     memset(vram.data, 0, sizeof(vram.data));
-    init();
+    initPpu();
 }
 
-void Video::init()
+void Video::initRenderer()
+{
+    SetTraceLogCallback(raylibLogFormat);
+    InitWindow(GB_LCD_RESX * SCALING, GB_LCD_RESY * SCALING, "GameBoy");
+
+    SetTargetFPS(60);
+
+    screenImage = GenImageColor(GB_LCD_RESX, GB_LCD_RESY, WHITE);
+    screenTexture = LoadTextureFromImage(screenImage);
+}
+
+void Video::initPpu()
 {
     auto& ioRo = *reinterpret_cast<IOImpl*>(io.roMasks);
 
@@ -227,24 +231,45 @@ void Video::init()
     auto& io = getIo();
     io.ly = VSYNC_LY_START - 1;
 
-    hsync.setCallback(
-        [this](size_t)
-        {
-            auto& io = getIo();
-            if (++io.ly == VSYNC_LY_START)
+    if (mGraphical)
+    {
+        hsync.setCallback(
+            [this](size_t)
             {
-                if (mGraphical)
+                auto& io = getIo();
+                if (io.ly < VSYNC_LY_START)
+                {
+                    drawLine();
+                }
+                if (++io.ly == VSYNC_LY_START)
                 {
                     renderFrame();
+                    gb.cpu.raiseIrq(cpu::IRQ::VBlank);
+                    io.stat.ppuMode = 1;
                 }
-                gb.cpu.raiseIrq(cpu::IRQ::VBlank);
-                io.stat.ppuMode = 1;
-            }
-            else
+                else
+                {
+                    io.stat.ppuMode = 3;
+                }
+            });
+    }
+    else
+    {
+        hsync.setCallback(
+            [this](size_t)
             {
-                io.stat.ppuMode = 3;
-            }
-        });
+                auto& io = getIo();
+                if (++io.ly == VSYNC_LY_START)
+                {
+                    gb.cpu.raiseIrq(cpu::IRQ::VBlank);
+                    io.stat.ppuMode = 1;
+                }
+                else
+                {
+                    io.stat.ppuMode = 3;
+                }
+            });
+    }
 
     dma.setCallback(
         [this](size_t)
@@ -252,13 +277,134 @@ void Video::init()
             auto& io = getIo();
             uint16_t src = ((uint16_t)io.dma << 8);
 
-            for (uint16_t i = 0; i < 0xa0; ++i)
+            for (uint16_t i = 0; i < GB_OAM_SIZE; ++i)
             {
                 oam.data[i] = gb.cpu.mem.load8(src + i);
             }
         });
 
     gb.events.scheduleEvent(hsync, HSYNC_DURATION);
+}
+
+struct Object
+{
+    uint8_t yPos;
+    uint8_t xPos;
+    uint8_t tileId;
+    union
+    {
+        struct
+        {
+            uint8_t cbgPalette:3;
+            uint8_t bank:1;
+            uint8_t dmgPalette:1;
+            uint8_t xflip:1;
+            uint8_t yflip:1;
+            uint8_t prio:1;
+        };
+        uint8_t value;
+    } attr;
+};
+
+static uint8_t getColor(uint8_t* tile, uint8_t pixel)
+{
+    return (((tile[0] >> (7 - (pixel % 8))) & 1))
+        | (((tile[1] >> (7 - (pixel % 8))) & 1) << 1);
+}
+
+void Video::drawLine()
+{
+    auto& io = getIo();
+
+    const uint8_t y = io.ly;
+    const uint8_t wx = io.wx - 7;
+
+    const bool useWindow = io.lcdc.windowEnable and io.wy <= io.ly;
+    bool unsig;
+
+    uint16_t tileData;
+
+    if (io.lcdc.bgWindowDataArea)
+    {
+        tileData = 0x0000;
+        unsig = true;
+    }
+    else
+    {
+        tileData = 0x0800;
+        unsig = false;
+    }
+
+    const uint16_t bgMemory = useWindow
+        ? io.lcdc.windowTileMapArea
+            ? 0x1c00
+            : 0x1800
+        : io.lcdc.bgTileMapArea
+            ? 0x1c00
+            : 0x1800;
+
+    Object objs[10];
+    int objIndex = 0;
+
+    if (io.lcdc.objEnable)
+    {
+        for (uint16_t i = 0; i < GB_OAM_SIZE and objIndex < 10; i += sizeof(Object))
+        {
+            const auto obj = reinterpret_cast<Object*>(oam.data + i);
+
+            if ((y + 16 >= obj->yPos) and (y + 8 < obj->yPos))
+            {
+                objs[objIndex++] = *obj;
+            }
+        }
+    }
+
+    const uint8_t yPos = useWindow
+        ? y - io.wy
+        : io.scy + y;
+
+    for (uint8_t x = 0; x < GB_LCD_RESX; ++x)
+    {
+        const uint8_t xPos = useWindow and x >= wx
+            ? x - wx
+            : io.scx + x;
+
+        const uint16_t tileAddr = bgMemory + (yPos / 8) * 32 + xPos / 8;
+
+        const auto tileId = unsig
+            ? vram.data[tileAddr]
+            : 128 + (int8_t)vram.data[tileAddr];
+
+        const auto tileLocation = tileData + tileId * GB_TILE_BYTES;
+        const auto line = (yPos % 8) * 2;
+
+        const auto bgColor = getColor(&vram.data[tileLocation + line], xPos % 8);
+
+        ImageDrawPixel(&screenImage, x, y, colors[bgColor]);
+
+        for (int i = 0; i < objIndex; ++i)
+        {
+            const auto obj = &objs[i];
+            if ((x + 8 >= obj->xPos) and (x < obj->xPos))
+            { // FIXME: lack of support for 8x16 objects
+                const auto xPos = obj->xPos - 8;
+                const auto yPos = obj->yPos - 16;
+                const auto tileData = vram.data + (obj->attr.bank ? 0x1000 : 0x0);
+                const auto tile = tileData + obj->tileId * GB_TILE_BYTES;
+
+                const auto relX = obj->attr.xflip ? 7 - (x - xPos) : x - xPos;
+                const auto relY = obj->attr.yflip ? 7 - (y - yPos) : y - yPos;
+
+                const auto color = getColor(&tile[relY * 2], relX);
+
+                if ((not obj->attr.prio or bgColor == 0) and color > 0)
+                {
+                    ImageDrawPixel(&screenImage, x, y, colors[color]);
+                }
+                break;
+            }
+        }
+    }
 }
 
 void Video::renderFrame()
@@ -284,85 +430,11 @@ void Video::renderFrame()
         return;
     }
 
-    const auto bgWindowDataOffset = io.lcdc.bgWindowDataArea
-        ? 0x0000
-        : 0x0800;
-
-    const auto windowTileMapOffset = io.lcdc.windowTileMapArea
-        ? 0x1c00
-        : 0x1800;
-
-    const auto scx = io.scx;
-    const auto scy = io.scy;
-
-    const uint8_t* tileData = vram.data + bgWindowDataOffset;
-
-    for (int mapY = 0; mapY < GB_TILE_DATA_RESY / GB_TILE_RESY; ++mapY)
-    {
-        for (int mapX = 0; mapX < GB_TILE_DATA_RESX / GB_TILE_RESX; ++mapX)
-        {
-            const auto tileIndex = vram.data[windowTileMapOffset + mapY * 32 + mapX];
-            const auto tile = tileData + tileIndex * GB_TILE_BYTES;
-
-            for (int j = 0; j < GB_TILE_RESY; ++j)
-            {
-                const auto byte1 = tile[j * 2];
-                const auto byte2 = tile[j * 2 + 1];
-
-                const auto y = (mapY * GB_TILE_RESY + j + GB_TILE_DATA_RESY - scy) % GB_TILE_DATA_RESY;
-
-                if (y >= GB_LCD_RESY)
-                {
-                    continue;
-                }
-
-                for (int i = 0; i < GB_TILE_RESX; ++i)
-                {
-                    const auto color
-                        = (((byte1 >> (7 - i)) & 1))
-                        | (((byte2 >> (7 - i)) & 1) << 1);
-
-                    const auto x = (mapX * GB_TILE_RESX + i + GB_TILE_DATA_RESX - scx) % GB_TILE_DATA_RESX;
-
-                    if (x >= GB_LCD_RESX)
-                    {
-                        break;
-                    }
-
-                    ImageDrawPixel(&screenImage, x, y, colors[color]);
-                }
-            }
-        }
-    }
-
-    if (io.lcdc.objEnable)
-    {
-        uint8_t objHeight = io.lcdc.objSize
-            ? 16
-            : 8;
-
-        uint8_t objSize = (objHeight * 8) / 4;
-
-        constexpr uint16_t objTileData = 0x0000;
-
-        (void)(objHeight and objSize and objTileData);
-
-        for (uint16_t i = 0; i < 0xa0; i += 4)
-        {
-            auto y = oam.data[i];
-            auto x = oam.data[i + 1];
-            auto tileId = oam.data[i + 2];
-            auto attr = oam.data[i + 3];
-
-            (void)(attr and x and y and tileId);
-        }
-    }
-
     UpdateTexture(screenTexture, screenImage.data);
 
     RENDER()
     {
-        ClearBackground(WHITE);
+        ClearBackground(BLACK);
         DrawTextureEx(screenTexture, Vector2{0, 0}, 0.0f, SCALING, WHITE);
         DrawFPS(SCALING * GB_LCD_RESX - 100, 20);
     }
@@ -372,7 +444,7 @@ void Video::IO::store(uint8_t addr, uint8_t value)
 {
     if (addr == offsetof(IOImpl, dma))
     {
-        gb.events.scheduleEvent(dma, gb.cpu.cycles + 620);
+        gb.events.scheduleEvent(dma, gb.cpu.cycles + DMA_DURATION);
     }
     return BaseIO::store(addr, value);
 }

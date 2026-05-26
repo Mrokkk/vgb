@@ -5,6 +5,7 @@
 #include "config.hpp"
 #include "game_boy.hpp"
 #include "ppu/video.hpp"
+#include "sys/system.hpp"
 
 GameBoy gb;
 
@@ -116,6 +117,7 @@ struct Fixture
         };
         if (not initialized)
         {
+            sys::finalize();
             gb.vid.start(config);
             gb.cpu.skipBootRom();
             gb.cpu.timer.start();
@@ -147,15 +149,6 @@ struct Fixture
         data[index++] = 0;
         return std::string(data);
     }
-
-    void checkVerdict() const
-    {
-        auto str = readTestOutput();
-        if (not str.contains("Passed"))
-        {
-            FAIL_CHECK("\n", str);
-        }
-    }
 };
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof(*A))
@@ -169,7 +162,8 @@ TEST_CASE_FIXTURE(Fixture, "instruction_tests")
             gb.cpu.mem.loadCartridge(data[i].rom);
             auto result = gb.cpu.run();
             CHECK_FALSE(result);
-            checkVerdict();
+            auto str = readTestOutput();
+            CHECK_FALSE(not str.contains("Passed"));
         }
     }
 }

@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
     const Config config{
         .cartridgePath = cmdl[1],
         .skipBootRom = cmdl[{"-f", "--skip-boot"}],
-        .useDebugger = cmdl[{"-f", "--skip-boot"}],
+        .useDebugger = cmdl[{"-g", "--debugger"}],
     };
 
     auto mappedRom = sys::mapFile(config.cartridgePath.c_str());

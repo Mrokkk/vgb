@@ -11,9 +11,11 @@ void GameBoy::run(const void* cartridge, const Config& config)
 
     vid.start(config);
 
+    cpu.timer.start();
+
     if (config.skipBootRom)
     {
-        gb.skipBootRom();
+        skipBootRom();
     }
 
     auto result = cpu.run();
@@ -22,7 +24,7 @@ void GameBoy::run(const void* cartridge, const Config& config)
         fmt::println("Exception raised: {}", result.error());
     }
 
-    gb.vid.stop();
+    vid.stop();
 }
 
 void GameBoy::reset()

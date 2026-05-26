@@ -34,7 +34,9 @@ struct Video
 
 private:
     struct IOImpl;
-    void init();
+    void initPpu();
+    void initRenderer();
+    void drawLine();
     void renderFrame();
     void scheduleHsync(size_t cycles);
 

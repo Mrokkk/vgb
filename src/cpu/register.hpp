@@ -43,17 +43,4 @@ struct Register16 : Register<uint16_t>
     using Register::operator=;
 };
 
-template <typename T>
-struct RegisterDelta
-{
-    RegisterDelta(Register<T> o, Register<T> c)
-        : old(o)
-        , current(c)
-    {
-    }
-
-    Register<T> old;
-    Register<T> current;
-};
-
 }  // namespace cpu
