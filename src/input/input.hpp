@@ -13,7 +13,6 @@ struct Input
     ~Input();
 
     void start(const Config& config);
-    void stop();
     void reset();
 
     void update();

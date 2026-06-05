@@ -1,7 +1,5 @@
 #include "cartridge.hpp"
 
-#include <cstring>
-
 #include "game_boy.hpp"
 
 namespace memory
@@ -10,59 +8,67 @@ namespace memory
 enum
 {
     MEMORY_BANK_SIZE = 0x4000,
+    RAM_BANK_SIZE    = 0x2000,
 };
 
 Cartridge::Cartridge()
-    : mHeader(nullptr)
-    , mRamEnabled(false)
+    : mRamEnabled(false)
+    , mAllocatedRam(false)
     , mMBC(MBC::NoMBC)
-    , mSize(0)
-    , mRamBank(0)
-    , mBank(0)
+    , mRom(nullptr)
     , mRam(nullptr)
+    , mRomSize(0)
+    , mRamSize(0)
+    , mRamBank(0)
+    , mBanks(0)
+    , mBank(0)
 {
 }
 
 Cartridge::~Cartridge()
 {
-    if (mRam)
+    if (mAllocatedRam)
     {
         delete [] mRam;
     }
 }
 
-void Cartridge::initialize(const uint8_t* data)
+void Cartridge::initialize(const void* rom, void* ram)
 {
-    if (mRam)
-    {
-        delete [] mRam;
-    }
-    mHeader = reinterpret_cast<const CartridgeHeader*>(data);
-    mSize = romSize();
+    mRom     = static_cast<const uint8_t*>(rom);
+    mRomSize = romSize();
     mRamSize = ramSize();
-    mRam = allocateRam(mRamSize);
-    mMBC = MBC();
-    mBanks = (mSize + 1) / MEMORY_BANK_SIZE;
+    if (ram)
+    {
+        mRam = static_cast<uint8_t*>(ram);
+        mAllocatedRam = false;
+    }
+    else
+    {
+        mRam = mRamSize
+            ? new uint8_t[mRamSize]
+            : nullptr;
+        mAllocatedRam = !!mRam;
+    }
+    mMBC     = MBC();
+    mBanks   = (mRomSize + 1) / MEMORY_BANK_SIZE;
 }
 
 void Cartridge::reset()
 {
-    if (mRam)
-    {
-        memset(mRam, 0, mRamSize);
-    }
-    mBank = 0;
+    mBank    = 0;
+    mRamBank = 0;
 }
 
 uint8_t Cartridge::load(uint16_t addr) const
 {
     if (addr < MEMORY_BANK_SIZE)
     {
-        return mData[addr];
+        return mRom[addr];
     }
     else
     {
-        return mData[MEMORY_BANK_SIZE * mBank + addr];
+        return mRom[MEMORY_BANK_SIZE * mBank + addr];
     }
 }
 
@@ -74,6 +80,7 @@ void Cartridge::store(uint16_t addr, uint8_t value)
         0x00, // MBC2
         0x7f, // MBC3
     };
+
     switch (mMBC)
     {
         case MBC::MBC1:
@@ -85,7 +92,7 @@ void Cartridge::store(uint16_t addr, uint8_t value)
             }
             else if (addr >= 0x2000 and addr < 0x4000)
             {
-                mBank = value & bankMasks[(uint8_t)mMBC];
+                mBank = value & bankMasks[static_cast<uint8_t>(mMBC)];
                 if (mBank > 0) [[likely]]
                 {
                     mBank--;
@@ -113,7 +120,7 @@ uint8_t Cartridge::loadRam(uint16_t addr) const
     {
         return 0xff;
     }
-    return mRam[mRamBank * 0x2000 + addr];
+    return mRam[mRamBank * RAM_BANK_SIZE + addr];
 }
 
 void Cartridge::storeRam(uint16_t addr, uint8_t value)
@@ -122,7 +129,7 @@ void Cartridge::storeRam(uint16_t addr, uint8_t value)
     {
         return;
     }
-    mRam[mRamBank * 0x2000 + addr] = value;
+    mRam[mRamBank * RAM_BANK_SIZE + addr] = value;
 }
 
 MBC Cartridge::MBC() const
@@ -163,48 +170,5 @@ MBC Cartridge::MBC() const
             return MBC::NoMBC;
     }
 }
-
-uint8_t* Cartridge::allocateRam(size_t size)
-{
-    return size
-        ? new uint8_t[size]
-        : nullptr;
-}
-
-//std::ostream& operator<<(std::ostream& os, CartridgeType type)
-//{
-    //switch (type)
-    //{
-        //case CartridgeType::ROM_ONLY:                       return os << "ROM only";
-        //case CartridgeType::MBC1:                           return os << "MBC1";
-        //case CartridgeType::MBC1_RAM:                       return os << "MBC1+RAM";
-        //case CartridgeType::MBC1_RAM_BATTERY:               return os << "MBC1+RAM+BATTERY";
-        //case CartridgeType::MBC2:                           return os << "MBC2";
-        //case CartridgeType::MBC2_BATTERY:                   return os << "MBC2+BATTERY";
-        //case CartridgeType::ROM_RAM:                        return os << "ROM+RAM";
-        //case CartridgeType::ROM_RAM_BATTERY:                return os << "ROM+RAM+BATTERY";
-        //case CartridgeType::MMM01:                          return os << "MMM01";
-        //case CartridgeType::MMM01_RAM:                      return os << "MMM01+RAM";
-        //case CartridgeType::MMM01_RAM_BATTERY:              return os << "MMM01+RAM+BATTERY";
-        //case CartridgeType::MBC3_TIMER_BATTERY:             return os << "MBC3+TIMER+BATTERY";
-        //case CartridgeType::MBC3_TIMER_RAM_BATTERY:         return os << "MBC3+TIMER+RAM+BATTERY";
-        //case CartridgeType::MBC3:                           return os << "MBC3";
-        //case CartridgeType::MBC3_RAM:                       return os << "MBC3+RAM";
-        //case CartridgeType::MBC3_RAM_BATTERY:               return os << "MBC3+RAM+BATTERY";
-        //case CartridgeType::MBC5:                           return os << "MBC5";
-        //case CartridgeType::MBC5_RAM:                       return os << "MBC5+RAM";
-        //case CartridgeType::MBC5_RAM_BATTERY:               return os << "MBC5+RAM+BATTERY";
-        //case CartridgeType::MBC5_RUMBLE:                    return os << "MBC5+RUMBLE";
-        //case CartridgeType::MBC5_RUMBLE_RAM:                return os << "MBC5+RUMBLE+RAM";
-        //case CartridgeType::MBC5_RUMBLE_RAM_BATTERY:        return os << "MBC5+RUMBLE+RAM+BATTERY";
-        //case CartridgeType::MBC6:                           return os << "MBC6";
-        //case CartridgeType::MBC7_SENSOR_RUMBLE_RAM_BATTERY: return os << "MBC7+SENSOR+RUMBLE+RAM+BATTERY";
-        //case CartridgeType::POCKET_CAMERA:                  return os << "POCKET CAMERA";
-        //case CartridgeType::BANDAI_TAMA5:                   return os << "BANDAI TAMA5";
-        //case CartridgeType::HuC3:                           return os << "HuC3";
-        //case CartridgeType::HuC1_RAM_BATTERY:               return os << "HuC1+RAM+BATTERY";
-    //}
-    //return os << "Unknown(" << int(type) << ')';
-//}
 
 }  // namespace memory

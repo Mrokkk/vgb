@@ -99,6 +99,7 @@ add_library(emulator OBJECT
     src/memory/cartridge.cpp
     src/memory/io.cpp
     src/memory/memory.cpp
+    src/memory/printers.cpp
     src/ppu/video.cpp
     src/sys/posix.cpp
     src/utils/buffer.cpp

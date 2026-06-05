@@ -160,7 +160,7 @@ TEST_CASE_FIXTURE(Fixture, "instruction_tests")
     {
         SUBCASE(data[i].name)
         {
-            gb.cpu.mem.loadCartridge(data[i].rom);
+            gb.cartridge.initialize(data[i].rom, nullptr);
             auto result = gb.cpu.run();
             CHECK_FALSE(result);
             auto str = readTestOutput();

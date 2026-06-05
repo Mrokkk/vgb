@@ -441,7 +441,13 @@ MaybeString readLineFromStdin(const std::string_view& prompt)
     return res;
 }
 
-MaybeMappedFile mapFile(const char* pathname)
+bool doesFileExist(const char* pathname)
+{
+    struct stat buf;
+    return stat(pathname, &buf) == 0;
+}
+
+MaybeMappedFile mapFile(const char* pathname, bool readOnly)
 {
     const int fd = open(pathname, O_RDONLY);
 
@@ -457,17 +463,38 @@ MaybeMappedFile mapFile(const char* pathname)
         return std::unexpected(strerror(errno));
     }
 
-    auto mapped = mmap(nullptr, stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    auto mapped = mmap(nullptr, stat.st_size, PROT_READ | (readOnly ? 0 : PROT_WRITE), MAP_PRIVATE, fd, 0);
 
     if (mapped == MAP_FAILED) [[unlikely]]
     {
         return std::unexpected(strerror(errno));
     }
 
+    close(fd);
+
     return MappedFile{
         .ptr = mapped,
         .size = static_cast<size_t>(stat.st_size)
     };
+}
+
+std::expected<bool, std::string> saveToFile(const char* pathname, const void* data, size_t size)
+{
+    const int fd = open(pathname, O_RDWR | O_CREAT, 0660);
+
+    if (fd == -1) [[unlikely]]
+    {
+        return std::unexpected(strerror(errno));
+    }
+
+    if (write(fd, data, size) == -1) [[unlikely]]
+    {
+        return std::unexpected(strerror(errno));
+    }
+
+    close(fd);
+
+    return true;
 }
 
 }  // namespace sys

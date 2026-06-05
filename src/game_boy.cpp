@@ -5,9 +5,9 @@
 #include "config.hpp"
 #include "cpu/printers.hpp"
 
-void GameBoy::run(const void* cartridge, const Config& config)
+void GameBoy::start(const void* rom, void* ram, const Config& config)
 {
-    cpu.mem.loadCartridge(cartridge);
+    cartridge.initialize(rom, ram);
 
     vid.start(config);
     inp.start(config);
@@ -18,20 +18,22 @@ void GameBoy::run(const void* cartridge, const Config& config)
     {
         skipBootRom();
     }
+}
 
+void GameBoy::run()
+{
     auto result = cpu.run();
     if (not result) [[unlikely]]
     {
         fmt::println("Exception raised: {}", result.error());
     }
-
-    vid.stop();
 }
 
 void GameBoy::reset()
 {
     events.reset();
     cpu.reset();
+    cartridge.reset();
     vid.reset();
     snd.reset();
     inp.reset();

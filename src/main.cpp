@@ -8,6 +8,14 @@
 
 GameBoy gb;
 
+std::string createRamFilePath(const std::string& romFilePath)
+{
+    auto dot = romFilePath.find_last_of('.', romFilePath.size());
+    std::string ramFilePath(romFilePath.begin(), romFilePath.begin() + dot);
+    ramFilePath += ".vgb";
+    return ramFilePath;
+}
+
 int main(int argc, char* argv[])
 {
     sys::initialize();
@@ -22,29 +30,63 @@ int main(int argc, char* argv[])
 
     const Config config{
         .cartridgePath = cmdl[1],
+        .cartridgeRamPath = createRamFilePath(cmdl[1]),
         .skipBootRom = cmdl[{"-f", "--skip-boot"}],
         .useDebugger = cmdl[{"-g", "--debugger"}],
     };
 
-    auto mappedRom = sys::mapFile(config.cartridgePath.c_str());
+    const auto mappedRom = sys::mapFile(config.cartridgePath.c_str());
 
     if (not mappedRom) [[unlikely]]
     {
-        fmt::println(stderr, "{}: cannot map: {}", argv[1], mappedRom.error());
+        fmt::println(stderr, "{}: cannot map: {}", config.cartridgePath, mappedRom.error());
         sys::finalize();
         return EXIT_FAILURE;
     }
 
-    if (config.useDebugger)
+    sys::MappedFile mappedRam;
+
+    if (sys::doesFileExist(config.cartridgeRamPath.c_str()))
     {
-        debugger::main(mappedRom->ptr, config);
+        auto result = sys::mapFile(config.cartridgeRamPath.c_str(), false);
+
+        if (not result) [[unlikely]]
+        {
+            fmt::println(stderr, "{}: cannot map: {}", config.cartridgeRamPath, result.error());
+            sys::finalize();
+            return EXIT_FAILURE;
+        }
+
+        mappedRam = *result;
     }
     else
     {
-        gb.run(mappedRom->ptr, config);
+        mappedRam.ptr = nullptr;
+    }
+
+    gb.start(mappedRom->ptr, mappedRam.ptr, config);
+
+    if (config.useDebugger)
+    {
+        debugger::main();
+    }
+    else
+    {
+        gb.run();
     }
 
     sys::finalize();
+
+    if (gb.cartridge.getRam())
+    {
+        auto res = sys::saveToFile(config.cartridgeRamPath.c_str(), gb.cartridge.getRam(), gb.cartridge.ramSize());
+
+        if (not res)
+        {
+            fmt::println(stderr, "{}: cannot save file: {}", config.cartridgeRamPath, res.error());
+            return EXIT_FAILURE;
+        }
+    }
 
     return 0;
 }

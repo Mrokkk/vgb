@@ -61,10 +61,6 @@ void Input::start(const Config&)
     gb.events.scheduleEvent(refresh, 70224);
 }
 
-void Input::stop()
-{
-}
-
 void Input::reset()
 {
     buttons.value = 0;

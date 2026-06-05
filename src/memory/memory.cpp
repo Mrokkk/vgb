@@ -36,15 +36,9 @@ ALWAYS_INLINE static void store(uint8_t* arr, uint16_t addr, uint8_t data)
     arr[addr] = data;
 }
 
-void Memory::loadCartridge(const void* data)
-{
-    mCartridge.initialize(static_cast<const uint8_t*>(data));
-}
-
 void Memory::reset()
 {
     mBootRomEnabled = true;
-    mCartridge.reset();
     memset(mBaseWRam, 0, sizeof(mBaseWRam));
     memset(mSwitchableWRam, 0, sizeof(mSwitchableWRam));
     memset(mHRam, 0, sizeof(mHRam));
@@ -73,13 +67,13 @@ uint8_t Memory::load8(uint16_t addr) const
             [[fallthrough]];
 
         MEMORY_RANGE(ROM):
-            return mCartridge.load(addr);
+            return gb.cartridge.load(addr);
 
         MEMORY_RANGE(VRAM):
             return gb.vid.vram.load(addr - Map::VRAM.start);
 
         MEMORY_RANGE(EXT_RAM):
-            return mCartridge.loadRam(addr - Map::EXT_RAM.start);
+            return gb.cartridge.loadRam(addr - Map::EXT_RAM.start);
 
         GENERIC_LOAD(BASE_WRAM, mBaseWRam);
         GENERIC_LOAD(BANKED_WRAM, mSwitchableWRam);
@@ -117,13 +111,13 @@ void Memory::store8(uint16_t addr, uint8_t val)
             [[fallthrough]];
 
         MEMORY_RANGE(ROM):
-            return mCartridge.store(addr, val);
+            return gb.cartridge.store(addr, val);
 
         MEMORY_RANGE(VRAM):
             return gb.vid.vram.store(addr - Map::VRAM.start, val);
 
         MEMORY_RANGE(EXT_RAM):
-            return mCartridge.storeRam(addr - Map::EXT_RAM.start, val);
+            return gb.cartridge.storeRam(addr - Map::EXT_RAM.start, val);
 
         MEMORY_RANGE(BASE_WRAM):
             return store(mBaseWRam, addr - Map::BASE_WRAM.start, val);

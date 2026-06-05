@@ -14,7 +14,6 @@ struct Video
     ~Video();
 
     void start(const Config& config);
-    void stop();
     void reset();
 
     using BaseIO = memory::GenericIO<0xff4c - 0xff40>;

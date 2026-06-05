@@ -176,18 +176,9 @@ void runCpu(State& state)
     printInstruction(state.cpu);
 }
 
-void main(const void* cartridge, const Config& config)
+void main()
 {
     sys::stopSupervision();
-
-    gb.cpu.mem.loadCartridge(cartridge);
-    gb.vid.start(config);
-    gb.inp.start(config);
-
-    if (config.skipBootRom)
-    {
-        gb.skipBootRom();
-    }
 
     fmt::println("Debugger mode");
     fmt::println("For help, type \"help\"");
@@ -243,8 +234,6 @@ void main(const void* cartridge, const Config& config)
             runCpu(state);
         }
     }
-
-    gb.vid.stop();
 }
 
 }  // namespace debugger

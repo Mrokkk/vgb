@@ -11,6 +11,7 @@ enum class VideoConfig
 struct Config
 {
     std::string cartridgePath;
+    std::string cartridgeRamPath;
     bool        skipBootRom;
     bool        useDebugger;
     VideoConfig videoConfig;

@@ -158,8 +158,18 @@ static const Color colors[] = {
     {0x00, 0x00, 0x00, 0xff},
 };
 
-Video::Video() = default;
-Video::~Video() = default;
+Video::Video()
+    : mGraphical(false)
+{
+}
+
+Video::~Video()
+{
+    if (mGraphical)
+    {
+        CloseWindow();
+    }
+}
 
 static Image screenImage;
 static Texture2D screenTexture;
@@ -191,13 +201,6 @@ void Video::start(const Config& config)
     {
         initRenderer();
     }
-}
-
-void Video::stop()
-{
-    UnloadTexture(screenTexture);
-    UnloadImage(screenImage);
-    CloseWindow();
 }
 
 void Video::reset()

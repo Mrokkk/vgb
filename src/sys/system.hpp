@@ -24,6 +24,8 @@ struct MappedFile
 
 using MaybeMappedFile = std::expected<MappedFile, std::string>;
 
-MaybeMappedFile mapFile(const char* pathname);
+bool doesFileExist(const char* pathname);
+MaybeMappedFile mapFile(const char* pathname, bool readOnly = true);
+std::expected<bool, std::string> saveToFile(const char* pathname, const void* data, size_t size);
 
 }  // namespace sys

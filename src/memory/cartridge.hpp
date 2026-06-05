@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 
 #include "utils/units.hpp"
@@ -74,7 +73,7 @@ struct Cartridge
     Cartridge();
     ~Cartridge();
 
-    void initialize(const uint8_t* data);
+    void initialize(const void* rom, void* ram);
     void reset();
 
     uint8_t load(uint16_t addr) const;
@@ -100,24 +99,30 @@ struct Cartridge
         return 0;
     }
 
+    void* getRam() const
+    {
+        return mRam;
+    }
+
     enum MBC MBC() const;
 
 private:
-    static uint8_t* allocateRam(size_t size);
+    bool     mRamEnabled:1;
+    bool     mAllocatedRam:1;
+    enum MBC mMBC:4;
 
-    const union
+    union
     {
         const CartridgeHeader* mHeader;
-        const uint8_t*         mData;
+        const uint8_t*         mRom;
     };
-    bool     mRamEnabled;
-    enum MBC mMBC;
-    size_t   mSize;
-    size_t   mRamSize;
+
+    uint8_t* mRam;
+    uint32_t mRomSize;
+    uint32_t mRamSize;
     uint32_t mRamBank;
     uint32_t mBanks;
     uint32_t mBank;
-    uint8_t* mRam;
 };
 
 }  // namespace memory
