@@ -306,7 +306,12 @@ struct Object
     } attr;
 };
 
-static uint8_t getColor(uint8_t* tile, uint8_t pixel)
+static uint8_t getColorFromPalette(uint8_t reg, int index)
+{
+    return (reg >> (index * 2)) & 3;
+}
+
+static uint8_t getColorIndexFromTile(uint8_t* tile, uint8_t pixel)
 {
     return (((tile[0] >> (7 - (pixel % 8))) & 1))
         | (((tile[1] >> (7 - (pixel % 8))) & 1) << 1);
@@ -321,6 +326,19 @@ void Video::drawLine()
 
     const bool useWindow = io.lcdc.windowEnable and io.wy <= io.ly;
     bool unsig;
+
+    Color bgPalette[4];
+    Color objPalette[8];
+
+    for (int i = 0; i < 4; ++i)
+    {
+        bgPalette[i] = colors[getColorFromPalette(io.bgp, i)];
+    }
+
+    for (int i = 0; i < 8; ++i)
+    {
+        objPalette[i] = colors[getColorFromPalette(*(&io.obp0 + i / 4) & ~3, i % 4)];
+    }
 
     uint16_t tileData;
 
@@ -378,9 +396,9 @@ void Video::drawLine()
         const auto tileLocation = tileData + tileId * GB_TILE_BYTES;
         const auto line = (yPos % 8) * 2;
 
-        const auto bgColor = getColor(&vram.data[tileLocation + line], xPos % 8);
+        const auto bgColor = getColorIndexFromTile(&vram.data[tileLocation + line], xPos % 8);
 
-        ImageDrawPixel(&screenImage, x, y, colors[bgColor]);
+        ImageDrawPixel(&screenImage, x, y, bgPalette[bgColor]);
 
         for (int i = 0; i < objIndex; ++i)
         {
@@ -395,11 +413,15 @@ void Video::drawLine()
                 const auto relX = obj->attr.xflip ? 7 - (x - xPos) : x - xPos;
                 const auto relY = obj->attr.yflip ? 7 - (y - yPos) : y - yPos;
 
-                const auto color = getColor(&tile[relY * 2], relX);
+                const auto color = getColorIndexFromTile(&tile[relY * 2], relX);
 
-                if ((not obj->attr.prio or bgColor == 0) and color > 0)
+                if (color == 0)
                 {
-                    ImageDrawPixel(&screenImage, x, y, colors[color]);
+                    continue;
+                }
+                if (not obj->attr.prio or bgColor == 0)
+                {
+                    ImageDrawPixel(&screenImage, x, y, objPalette[color + obj->attr.dmgPalette * 4]);
                 }
                 break;
             }
