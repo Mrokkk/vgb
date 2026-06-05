@@ -17,6 +17,7 @@ Cartridge::Cartridge()
     , mRamEnabled(false)
     , mMBC(MBC::NoMBC)
     , mSize(0)
+    , mRamBank(0)
     , mBank(0)
     , mRam(nullptr)
 {
@@ -91,6 +92,14 @@ void Cartridge::store(uint16_t addr, uint8_t value)
                 }
                 return;
             }
+            else if (addr >= 0x4000)
+            {
+                if (value <= 7)
+                {
+                    mRamBank = value;
+                    return;
+                }
+            }
         default:
             break;
     }
@@ -104,7 +113,7 @@ uint8_t Cartridge::loadRam(uint16_t addr) const
     {
         return 0xff;
     }
-    return mRam[addr];
+    return mRam[mRamBank * 0x2000 + addr];
 }
 
 void Cartridge::storeRam(uint16_t addr, uint8_t value)
@@ -113,7 +122,7 @@ void Cartridge::storeRam(uint16_t addr, uint8_t value)
     {
         return;
     }
-    mRam[addr] = value;
+    mRam[mRamBank * 0x2000 + addr] = value;
 }
 
 MBC Cartridge::MBC() const

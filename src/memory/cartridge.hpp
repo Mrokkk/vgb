@@ -114,6 +114,7 @@ private:
     enum MBC mMBC;
     size_t   mSize;
     size_t   mRamSize;
+    uint32_t mRamBank;
     uint32_t mBanks;
     uint32_t mBank;
     uint8_t* mRam;
