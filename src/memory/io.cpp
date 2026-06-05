@@ -22,7 +22,7 @@ void IO::store(uint16_t addr, uint8_t val)
 {
     if (addr == 0x00)
     {
-        return;
+        return gb.inp.store(val);
     }
     if (addr == 0x4d)
     {
@@ -51,7 +51,7 @@ uint8_t IO::load(uint16_t addr) const
     }
     if (addr == 0x00)
     {
-        return 0xff;
+        return gb.inp.load();
     }
     if (addr == 0x4d)
     {

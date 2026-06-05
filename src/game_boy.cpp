@@ -10,6 +10,7 @@ void GameBoy::run(const void* cartridge, const Config& config)
     cpu.mem.loadCartridge(cartridge);
 
     vid.start(config);
+    inp.start(config);
 
     cpu.timer.start();
 
@@ -33,6 +34,7 @@ void GameBoy::reset()
     cpu.reset();
     vid.reset();
     snd.reset();
+    inp.reset();
     if (mSkipBootRom)
     {
         skipBootRom();

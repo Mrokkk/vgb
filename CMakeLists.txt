@@ -95,6 +95,7 @@ add_library(emulator OBJECT
     src/cpu/timer.cpp
     src/event_system.cpp
     src/game_boy.cpp
+    src/input/input.cpp
     src/memory/cartridge.cpp
     src/memory/io.cpp
     src/memory/memory.cpp

@@ -4,6 +4,7 @@
 #include "cpu/sm83.hpp"
 #include "event_system.hpp"
 #include "fwd.hpp"
+#include "input/input.hpp"
 #include "ppu/video.hpp"
 
 struct GameBoy
@@ -12,10 +13,11 @@ struct GameBoy
     void reset();
     void skipBootRom();
 
-    cpu::SM83   cpu;
-    ppu::Video  vid;
-    apu::Sound  snd;
-    EventSystem events;
+    cpu::SM83    cpu;
+    ppu::Video   vid;
+    input::Input inp;
+    apu::Sound   snd;
+    EventSystem  events;
 private:
     bool mSkipBootRom;
 };

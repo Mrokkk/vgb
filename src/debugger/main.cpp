@@ -182,6 +182,7 @@ void main(const void* cartridge, const Config& config)
 
     gb.cpu.mem.loadCartridge(cartridge);
     gb.vid.start(config);
+    gb.inp.start(config);
 
     if (config.skipBootRom)
     {

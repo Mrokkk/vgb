@@ -119,6 +119,7 @@ struct Fixture
         {
             sys::finalize();
             gb.vid.start(config);
+            gb.inp.start(config);
             gb.cpu.skipBootRom();
             gb.cpu.timer.start();
             initialized = true;
