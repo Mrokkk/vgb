@@ -26,6 +26,7 @@ struct Map
     DEFINE_MEMORY_RANGE(BASE_WRAM,   0xc000, 0xd000);
     DEFINE_MEMORY_RANGE(BANKED_WRAM, 0xd000, 0xe000);
     DEFINE_MEMORY_RANGE(OAM,         0xfe00, 0xfea0);
+    DEFINE_MEMORY_RANGE(INVALID,     0xfea0, 0xff00);
     DEFINE_MEMORY_RANGE(IO,          0xff00, 0xff80);
     DEFINE_MEMORY_RANGE(HRAM,        0xff80, 0xffff);
     DEFINE_MEMORY_SINGLE(IE,         0xffff);

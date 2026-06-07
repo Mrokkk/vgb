@@ -64,6 +64,8 @@ size_t EventSystem::performNextEvent()
 void EventSystem::scheduleEvent(Event& event, size_t when)
 {
     assert(event.data.callback);
+    assert(event.next == &event);
+    assert(event.prev == &event);
 
     event.when = when;
 
@@ -108,6 +110,8 @@ void EventSystem::cancelEvent(Event& event)
     auto next = event.next;
     prev->next = next;
     next->prev = prev;
+    event.prev = &event;
+    event.next = &event;
 }
 
 void EventSystem::reset()
@@ -115,5 +119,15 @@ void EventSystem::reset()
     while (mHead->next != mHead)
     {
         cancelEvent(*mHead->next);
+    }
+}
+
+void EventSystem::forEachEvent(utils::FunctionRef<void(const Event&)> callback) const
+{
+    auto event = mHead->next;
+    while (event != mHead)
+    {
+        callback(*event);
+        event = event->next;
     }
 }

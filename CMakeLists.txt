@@ -115,6 +115,7 @@ add_library(debugger OBJECT
     src/debugger/commands/break.cpp
     src/debugger/commands/continue.cpp
     src/debugger/commands/crash.cpp
+    src/debugger/commands/events.cpp
     src/debugger/commands/help.cpp
     src/debugger/commands/registers.cpp
     src/debugger/commands/reset.cpp

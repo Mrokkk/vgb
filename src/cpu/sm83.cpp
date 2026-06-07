@@ -19,6 +19,7 @@ enum : uint8_t
 };
 
 static Event ei = Event::oneShot({
+    .name = "EI",
     .prio = 0,
     .callback =
         [](size_t)

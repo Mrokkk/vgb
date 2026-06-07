@@ -127,6 +127,9 @@ void Memory::store8(uint16_t addr, uint8_t val)
         MEMORY_RANGE(OAM):
             return gb.vid.oam.store(addr - Map::OAM.start, val);
 
+        MEMORY_RANGE(INVALID):
+            return;
+
         MEMORY_RANGE(IO):
             if (addr == 0xff50 and val > 0)
             {

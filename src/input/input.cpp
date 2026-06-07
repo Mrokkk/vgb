@@ -12,6 +12,7 @@ namespace input
 {
 
 static Event refresh = Event::repeating({
+    .name = "Input",
     .prio = 0,
     .period = 70224,
 });

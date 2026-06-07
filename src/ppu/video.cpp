@@ -175,11 +175,13 @@ static Image screenImage;
 static Texture2D screenTexture;
 
 static Event hsync = Event::repeating({
+    .name = "HSYNC",
     .prio = 0,
     .period = HSYNC_DURATION,
 });
 
 static Event dma = Event::oneShot({
+    .name = "OAM DMA",
     .prio = 0,
 });
 

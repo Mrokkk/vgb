@@ -18,6 +18,7 @@ struct Event
 
     struct Data
     {
+        const char* name;
         uint8_t  prio;
         size_t   period;
         Callback callback;
@@ -41,6 +42,21 @@ struct Event
     void setPeriod(size_t period)
     {
         data.period = period;
+    }
+
+    Type getType() const
+    {
+        return type;
+    }
+
+    size_t getWhen() const
+    {
+        return when;
+    }
+
+    const char* getName() const
+    {
+        return data.name;
     }
 
 private:

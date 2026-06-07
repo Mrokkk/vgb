@@ -41,7 +41,6 @@ void Cartridge::initialize(const void* rom, void* ram)
     if (ram)
     {
         mRam = static_cast<uint8_t*>(ram);
-        mAllocatedRam = false;
     }
     else
     {
@@ -83,6 +82,9 @@ void Cartridge::store(uint16_t addr, uint8_t value)
 
     switch (mMBC)
     {
+        case MBC::NoMBC:
+            return;
+
         case MBC::MBC1:
         case MBC::MBC3:
             if (addr < 0x2000)

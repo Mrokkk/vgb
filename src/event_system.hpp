@@ -2,6 +2,8 @@
 
 #include <cstddef>
 
+#include "utils/function_ref.hpp"
+
 struct Event;
 
 struct EventSystem
@@ -14,6 +16,8 @@ struct EventSystem
     void scheduleEvent(Event& event, size_t when);
     void cancelEvent(Event& event);
     void reset();
+
+    void forEachEvent(utils::FunctionRef<void(const Event&)> callback) const;
 
 private:
     Event* mHead;

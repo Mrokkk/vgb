@@ -9,11 +9,13 @@ namespace cpu
 {
 
 static Event divEvent = Event::repeating({
+    .name = "DIV",
     .prio   = 0,
     .period = 256,
 });
 
 static Event timaEvent = Event::repeating({
+    .name = "TIMA",
     .prio   = 0,
     .period = 0,
 });
