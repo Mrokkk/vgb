@@ -1,8 +1,11 @@
 #pragma once
 
+#include "fwd.hpp"
+
 namespace debugger
 {
 
-void main();
+void main(GameBoy& gb);
+void frame(unsigned int gameTextureId, int fps);
 
 }  // namespace debugger

@@ -7,7 +7,7 @@
 namespace cpu
 {
 
-struct Exception
+struct Exception final
 {
     enum Type
     {
@@ -41,11 +41,12 @@ struct Exception
         type = UserInterruption;
     }
 
-    ALWAYS_INLINE void reportSegmentationFault(uint16_t at, bool write)
+    ALWAYS_INLINE void reportSegmentationFault(uint16_t at, bool write, uint8_t value = 0)
     {
         type = SegmentationFault;
-        segmentationFault.addr = at;
+        segmentationFault.value = value;
         segmentationFault.write = write;
+        segmentationFault.addr = at;
     }
 
     ALWAYS_INLINE void reportNotImplemented(uint8_t opcode)
@@ -75,8 +76,9 @@ struct Exception
     {
         struct
         {
-            uint16_t addr;
+            uint8_t  value;
             bool     write;
+            uint16_t addr;
         } segmentationFault;
         struct
         {

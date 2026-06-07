@@ -10,7 +10,7 @@ namespace debugger::interpreter
 
 struct CommandBase;
 
-struct Commands
+struct Commands final
 {
     static Command* find(const std::string_view& name);
     static void forEach(utils::FunctionRef<void(const Command&)> callback);

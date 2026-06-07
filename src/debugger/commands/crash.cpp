@@ -7,7 +7,7 @@ DEFINE_COMMAND(crash)
 {
     EXECUTOR()
     {
-        *((int*)0) = 2039;
+        *((int*)0) = 2137;
         return 0;
     }
 

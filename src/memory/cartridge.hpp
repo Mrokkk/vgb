@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "utils/immobile.hpp"
 #include "utils/units.hpp"
 
 namespace memory
@@ -68,12 +69,12 @@ struct [[gnu::packed]] CartridgeHeader
     uint16_t      globalChecksum;
 };
 
-struct Cartridge
+struct Cartridge final : utils::Immobile
 {
     Cartridge();
     ~Cartridge();
 
-    void initialize(const void* rom, void* ram);
+    void initialize(void* rom, void* ram);
     void reset();
 
     uint8_t load(uint16_t addr) const;
@@ -99,10 +100,18 @@ struct Cartridge
         return 0;
     }
 
+    uint8_t* getRom()
+    {
+        return mRom;
+    }
+
     void* getRam() const
     {
         return mRam;
     }
+
+    const char* getTitle() const;
+    const char* getType() const;
 
     enum MBC MBC() const;
 
@@ -110,11 +119,12 @@ private:
     bool     mRamEnabled:1;
     bool     mAllocatedRam:1;
     enum MBC mMBC:4;
+    char     mTitle[17];
 
     union
     {
         const CartridgeHeader* mHeader;
-        const uint8_t*         mRom;
+        uint8_t*               mRom;
     };
 
     uint8_t* mRam;

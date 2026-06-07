@@ -1,18 +1,60 @@
 #include "game_boy.hpp"
 
-#include <fmt/base.h>
+#include <cstdint>
+#include <utility>
 
+#include "apu.hpp"
+#include "component.hpp"
 #include "config.hpp"
-#include "cpu/printers.hpp"
+#include "joypad.hpp"
+#include "ppu.hpp"
+#include "renderer.hpp"
+#include "sys/system.hpp"
+#include "timer.hpp"
+#include "utils/unique_ptr.hpp"
 
-void GameBoy::start(const void* rom, void* ram, const Config& config)
+struct DummyComponent final : Component
+{
+    void reset() override
+    {
+    }
+
+    void store(uint16_t, uint8_t) override
+    {
+    }
+
+    uint8_t load(uint16_t) const override
+    {
+        return 0xff;
+    }
+};
+
+GameBoy::GameBoy()
+    : speedMultiplier(1)
+    , frameNumber(0)
+    , inputEnabled(true)
+{
+    for (auto& component : components)
+    {
+        component = utils::makeUnique<DummyComponent>();
+    }
+}
+
+GameBoy::~GameBoy() = default;
+
+void GameBoy::start(void* rom, void* ram, const Config& config)
 {
     cartridge.initialize(rom, ram);
 
-    vid.start(config);
-    inp.start(config);
+    this->config = config;
 
-    cpu.timer.start();
+    createRenderer(*this, config);
+    createInput(*this, config);
+
+    createPpu(*this, config);
+    createJoypad(*this, config);
+    createApu(*this, config);
+    createTimer(*this, config);
 
     if (config.skipBootRom)
     {
@@ -22,11 +64,17 @@ void GameBoy::start(const void* rom, void* ram, const Config& config)
 
 void GameBoy::run()
 {
-    auto result = cpu.run();
-    if (not result) [[unlikely]]
+    while (cpu.step() == 0 and not cpu.stopped);
+}
+
+bool GameBoy::stop()
+{
+    if (cpu.stopped)
     {
-        fmt::println("Exception raised: {}", result.error());
+        return false;
     }
+    cpu.stop();
+    return true;
 }
 
 void GameBoy::reset()
@@ -34,10 +82,11 @@ void GameBoy::reset()
     events.reset();
     cpu.reset();
     cartridge.reset();
-    vid.reset();
-    snd.reset();
-    inp.reset();
-    if (mSkipBootRom)
+    for (auto& component : components)
+    {
+        component->reset();
+    }
+    if (config.skipBootRom)
     {
         skipBootRom();
     }
@@ -45,7 +94,7 @@ void GameBoy::reset()
 
 void GameBoy::skipBootRom()
 {
-    mSkipBootRom = true;
+    config.skipBootRom = true;
 
     cpu.af  = 0x01b0;
     cpu.bc  = 0x0013;
@@ -60,4 +109,24 @@ void GameBoy::skipBootRom()
     cpu.mem.store8(0xff50, 0x01); // Disable boot ROM
     cpu.mem.store8(0xff40, 0x91); // Enable video
     cpu.mem.store8(0xff41, 0x85);
+}
+
+void GameBoy::frame()
+{
+    // Renderer should be locked to 60 FPS which is used to synchronize
+    // GameBoy emulation. Skipping frames increases the emulation speed
+
+    static uint64_t counter = 0;
+    if ((counter++ % speedMultiplier) == 0)
+    {
+        ++frameNumber;
+        sys::pingSupervision();
+        gb.input->update();
+        gb.renderer->render();
+    }
+}
+
+void GameBoy::registerComponent(Component::Type type, utils::UniquePtr<Component> component)
+{
+    components[static_cast<int>(type)] = std::move(component);
 }

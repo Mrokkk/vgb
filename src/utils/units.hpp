@@ -1,7 +1,7 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
-#include <iosfwd>
 
 namespace utils
 {
@@ -15,18 +15,12 @@ namespace detail
 
 struct HumanReadableSize
 {
-    struct Data { uint32_t value; };
-
-    Data operator()(uint32_t value) const
-    {
-        return Data{value};
-    }
+    const size_t      value;
+    const char* const unit;
 };
-
-std::ostream& operator<<(std::ostream& os, const HumanReadableSize::Data& d);
 
 }  // namespace detail
 
-static constexpr detail::HumanReadableSize humanReadableSize;
+detail::HumanReadableSize humanReadable(uint64_t value);
 
 }  // namespace utils

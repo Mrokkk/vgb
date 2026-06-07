@@ -2,13 +2,13 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <expected>
 
 #include "cpu/exception.hpp"
 #include "cpu/isa/instruction_set.hpp"
 #include "cpu/register.hpp"
-#include "cpu/timer.hpp"
 #include "memory/memory.hpp"
+#include "utils/immobile.hpp"
+#include "utils/inline.hpp"
 
 namespace cpu
 {
@@ -62,7 +62,7 @@ union FlagsRegister
         Register8  $if; \
     }
 
-struct Regs
+struct Regs final
 {
     SM83_REGISTERS;
 };
@@ -76,29 +76,32 @@ enum class IRQ : uint8_t
     Joypad = 4,
 };
 
-struct SM83
+ALWAYS_INLINE static bool checkIrq(IRQ irq, uint8_t reg)
+{
+    return reg & 1 << uint8_t(irq);
+}
+
+struct SM83 final : utils::Immobile
 {
     SM83();
     ~SM83();
 
-    std::expected<bool, Exception> run();
     void reset();
     int step();
     int execute(const isa::Opcode& opcode, isa::InstructionData data, bool prefixed);
     void stop();
 
-    void raiseIrq(IRQ irq)
+    ALWAYS_INLINE void raiseIrq(IRQ irq)
     {
         $if |= 1 << uint8_t(irq);
         halt = false;
     }
 
-    void clearIrq(IRQ irq)
+    ALWAYS_INLINE void clearIrq(IRQ irq)
     {
         $if &= ~(1 << uint8_t(irq));
     }
 
-    void skipBootRom();
     void scheduleEi();
 
 private:
@@ -120,7 +123,6 @@ public:
     bool                 stopped;
     size_t               cycles;
     size_t               instructions;
-    Timer                timer;
     memory::Memory       mem;
     isa::InstructionSet  isa;
 };

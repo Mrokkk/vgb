@@ -8,7 +8,6 @@
 #include "game_boy.hpp"
 #include "memory/memory_map.hpp"
 #include "utils/byte_order.hpp"
-#include "utils/inline.hpp"
 
 namespace memory
 {
@@ -26,34 +25,21 @@ Memory::Memory()
 
 Memory::~Memory() = default;
 
-ALWAYS_INLINE static uint8_t load(const uint8_t* arr, uint16_t addr)
-{
-    return arr[addr];
-}
-
-ALWAYS_INLINE static void store(uint8_t* arr, uint16_t addr, uint8_t data)
-{
-    arr[addr] = data;
-}
-
 void Memory::reset()
 {
     mBootRomEnabled = true;
-    memset(mBaseWRam, 0, sizeof(mBaseWRam));
-    memset(mSwitchableWRam, 0, sizeof(mSwitchableWRam));
-    memset(mHRam, 0, sizeof(mHRam));
+    memset(vram.data, 0, sizeof(vram.data));
+    memset(baseWorkRam.data, 0, sizeof(baseWorkRam.data));
+    memset(bankedWorkRam.data, 0, sizeof(bankedWorkRam.data));
+    memset(oam.data, 0, sizeof(oam.data));
+    memset(highRam.data, 0, sizeof(highRam.data));
 }
 
 #define MEMORY_RANGE(RANGE) \
     case Map::RANGE.start ... Map::RANGE.end - 1
 
-#define GENERIC_LOAD(RANGE, ARR) \
-    MEMORY_RANGE(RANGE): \
-        return load(ARR, addr - Map::RANGE.start)
-
-#define GENERIC_STORE(RANGE, ARR) \
-    MEMORY_RANGE(RANGE): \
-        return store(ARR, addr - Map::RANGE.start, val)
+#define IO_MEMORY_RANGE(START, END) \
+    case START ... END - 1
 
 uint8_t Memory::load8(uint16_t addr) const
 {
@@ -62,7 +48,7 @@ uint8_t Memory::load8(uint16_t addr) const
         MEMORY_RANGE(BOOT_ROM):
             if (mBootRomEnabled)
             {
-                return load(dmgBootRom, addr);
+                return dmgBootRom[addr];
             }
             [[fallthrough]];
 
@@ -70,33 +56,68 @@ uint8_t Memory::load8(uint16_t addr) const
             return gb.cartridge.load(addr);
 
         MEMORY_RANGE(VRAM):
-            return gb.vid.vram.load(addr - Map::VRAM.start);
+            return vram.load(addr);
 
         MEMORY_RANGE(EXT_RAM):
-            return gb.cartridge.loadRam(addr - Map::EXT_RAM.start);
+            return gb.cartridge.loadRam(addr);
 
-        GENERIC_LOAD(BASE_WRAM, mBaseWRam);
-        GENERIC_LOAD(BANKED_WRAM, mSwitchableWRam);
+        MEMORY_RANGE(BASE_WRAM):
+            return baseWorkRam.load(addr);
+
+        MEMORY_RANGE(BANKED_WRAM):
+            return bankedWorkRam.load(addr);
+
+        MEMORY_RANGE(MIRROR):
+            return 0xff;
 
         MEMORY_RANGE(OAM):
-            return gb.vid.oam.load(addr - Map::OAM.start);
+            return oam.load(addr);
+
+        MEMORY_RANGE(INVALID):
+            return 0xff;
 
         MEMORY_RANGE(IO):
-            return mIo.load(addr - Map::IO.start);
+        {
+            auto relative = memory::Map::IO.relative(addr);
 
-        GENERIC_LOAD(HRAM, mHRam);
+            switch (relative)
+            {
+                IO_MEMORY_RANGE(0x00, 0x01):
+                    return gb.components[Component::Joypad]->load(relative);
 
-        case Map::IE:
+                IO_MEMORY_RANGE(0x01, 0x03):
+                    return gb.components[Component::Serial]->load(relative);
+
+                IO_MEMORY_RANGE(0x04, 0x08):
+                    return gb.components[Component::Timer]->load(relative - 0x04);
+
+                IO_MEMORY_RANGE(0x0f, 0x10):
+                    return gb.cpu.$if;
+
+                IO_MEMORY_RANGE(0x10, 0x40):
+                    return gb.components[Component::Apu]->load(relative - 0x10);
+
+                IO_MEMORY_RANGE(0x40, 0x4c):
+                    return gb.components[Component::Ppu]->load(relative - 0x40);
+
+                IO_MEMORY_RANGE(0x4d, 0x4e):
+                    return 0xff;
+
+                IO_MEMORY_RANGE(0x50, 0x51):
+                    return not mBootRomEnabled;
+            }
+            return 0xff;
+        }
+
+        MEMORY_RANGE(HRAM):
+            return highRam.load(addr);
+
+        MEMORY_RANGE(IE):
             return gb.cpu.ie;
     }
 
     gb.cpu.exc.reportSegmentationFault(addr, false);
-    return 0;
-}
-
-uint16_t Memory::load16(uint16_t addr) const
-{
-    return utils::le16(load8(addr), load8(addr + 1));
+    return 0xff;
 }
 
 void Memory::store8(uint16_t addr, uint8_t val)
@@ -114,38 +135,78 @@ void Memory::store8(uint16_t addr, uint8_t val)
             return gb.cartridge.store(addr, val);
 
         MEMORY_RANGE(VRAM):
-            return gb.vid.vram.store(addr - Map::VRAM.start, val);
+            return vram.store(addr, val);
 
         MEMORY_RANGE(EXT_RAM):
-            return gb.cartridge.storeRam(addr - Map::EXT_RAM.start, val);
+            return gb.cartridge.storeRam(addr, val);
 
         MEMORY_RANGE(BASE_WRAM):
-            return store(mBaseWRam, addr - Map::BASE_WRAM.start, val);
+            return baseWorkRam.store(addr, val);
 
-        GENERIC_STORE(BANKED_WRAM, mSwitchableWRam);
+        MEMORY_RANGE(BANKED_WRAM):
+            return bankedWorkRam.store(addr, val);
+
+        MEMORY_RANGE(MIRROR):
+            return;
 
         MEMORY_RANGE(OAM):
-            return gb.vid.oam.store(addr - Map::OAM.start, val);
+            return oam.store(addr, val);
 
         MEMORY_RANGE(INVALID):
             return;
 
         MEMORY_RANGE(IO):
-            if (addr == 0xff50 and val > 0)
+        {
+            auto relative = memory::Map::IO.relative(addr);
+
+            switch (relative)
             {
-                mBootRomEnabled = false;
-                return;
+                IO_MEMORY_RANGE(0x00, 0x01):
+                    return gb.components[Component::Joypad]->store(relative, val);
+
+                IO_MEMORY_RANGE(0x01, 0x03):
+                    return gb.components[Component::Serial]->store(relative, val);
+
+                IO_MEMORY_RANGE(0x04, 0x08):
+                    return gb.components[Component::Timer]->store(relative - 0x04, val);
+
+                IO_MEMORY_RANGE(0x0f, 0x10):
+                    gb.cpu.$if = val & 0x1f;
+                    return;
+
+                IO_MEMORY_RANGE(0x10, 0x40):
+                    return gb.components[Component::Apu]->store(relative - 0x10, val);
+
+                IO_MEMORY_RANGE(0x40, 0x4c):
+                    return gb.components[Component::Ppu]->store(relative - 0x40, val);
+
+                IO_MEMORY_RANGE(0x4d, 0x4e):
+                    return;
+
+                IO_MEMORY_RANGE(0x50, 0x51):
+                    if (val > 0)
+                    {
+                        mBootRomEnabled = false;
+                    }
+                    return;
             }
-            return mIo.store(addr - Map::IO.start, val);
+            return;
+        }
 
-        GENERIC_STORE(HRAM, mHRam);
+        MEMORY_RANGE(HRAM):
+            return highRam.store(addr, val);
 
-        case Map::IE:
+        MEMORY_RANGE(IE):
             gb.cpu.ie = val & 0x1f;
             return;
     }
 
-    gb.cpu.exc.reportSegmentationFault(addr, true);
+    gb.cpu.exc.reportSegmentationFault(addr, true, val);
+}
+
+uint16_t Memory::load16(uint16_t addr) const
+{
+    return utils::le16(load8(addr), load8(addr + 1));
 }
 
 void Memory::store16(uint16_t addr, uint16_t val)

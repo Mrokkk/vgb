@@ -1,3 +1,5 @@
+#include <cstdlib>
+
 #include <argh.h>
 #include <fmt/base.h>
 
@@ -8,7 +10,7 @@
 
 GameBoy gb;
 
-std::string createRamFilePath(const std::string& romFilePath)
+static std::string createRamFilePath(const std::string& romFilePath)
 {
     auto dot = romFilePath.find_last_of('.', romFilePath.size());
     std::string ramFilePath(romFilePath.begin(), romFilePath.begin() + dot);
@@ -16,15 +18,27 @@ std::string createRamFilePath(const std::string& romFilePath)
     return ramFilePath;
 }
 
+static void saveState(const Config& config)
+{
+    if (gb.cartridge.getRam())
+    {
+        auto res = sys::saveToFile(config.cartridgeRamPath.c_str(), gb.cartridge.getRam(), gb.cartridge.ramSize());
+
+        if (not res)
+        {
+            fmt::println(stderr, "{}: cannot save file: {}", config.cartridgeRamPath, res.error());
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
-    sys::initialize();
-    argh::parser cmdl(argc, argv);
+    const argh::parser cmdl(argc, argv);
 
     if (cmdl.size() != 2)
     {
         fmt::println(stderr, "Expected one positional argument, got {}", cmdl.size() - 1);
-        sys::finalize();
         return EXIT_FAILURE;
     }
 
@@ -33,14 +47,17 @@ int main(int argc, char* argv[])
         .cartridgeRamPath = createRamFilePath(cmdl[1]),
         .skipBootRom = cmdl[{"-f", "--skip-boot"}],
         .useDebugger = cmdl[{"-g", "--debugger"}],
+        .useSupervision = true,
+        .videoConfig = VideoConfig::Graphical
     };
 
-    const auto mappedRom = sys::mapFile(config.cartridgePath.c_str());
+    sys::initialize(config);
+
+    const auto mappedRom = sys::mapFile(config.cartridgePath.c_str(), false);
 
     if (not mappedRom) [[unlikely]]
     {
         fmt::println(stderr, "{}: cannot map: {}", config.cartridgePath, mappedRom.error());
-        sys::finalize();
         return EXIT_FAILURE;
     }
 
@@ -53,7 +70,6 @@ int main(int argc, char* argv[])
         if (not result) [[unlikely]]
         {
             fmt::println(stderr, "{}: cannot map: {}", config.cartridgeRamPath, result.error());
-            sys::finalize();
             return EXIT_FAILURE;
         }
 
@@ -68,25 +84,14 @@ int main(int argc, char* argv[])
 
     if (config.useDebugger)
     {
-        debugger::main();
+        debugger::main(gb);
     }
     else
     {
         gb.run();
     }
 
-    sys::finalize();
-
-    if (gb.cartridge.getRam())
-    {
-        auto res = sys::saveToFile(config.cartridgeRamPath.c_str(), gb.cartridge.getRam(), gb.cartridge.ramSize());
-
-        if (not res)
-        {
-            fmt::println(stderr, "{}: cannot save file: {}", config.cartridgeRamPath, res.error());
-            return EXIT_FAILURE;
-        }
-    }
+    saveState(config);
 
     return 0;
 }

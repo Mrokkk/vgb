@@ -3,11 +3,12 @@
 #include <expected>
 #include <string>
 
+#include "fwd.hpp"
+
 namespace sys
 {
 
-void initialize();
-void finalize();
+void initialize(const Config& config);
 void stacktraceLog();
 void pingSupervision();
 void stopSupervision();

@@ -1,4 +1,5 @@
 #include <fmt/base.h>
+#include <fmt/fmt_ext.h>
 
 #include "debugger/interpreter/command.hpp"
 #include "debugger/state.hpp"
@@ -15,7 +16,7 @@ DEFINE_COMMAND(break)
 
         if (address > 0xffff)
         {
-            fmt::println("Invalid address: {:x}", address);
+            logToConsole(state, "Invalid address: {:x}", address);
             return 1;
         }
 
@@ -23,7 +24,7 @@ DEFINE_COMMAND(break)
 
         state.breakpoints[address] = Breakpoint{.address = (uint16_t)address, .id = newId};
 
-        fmt::println("Breakpoint {} at {:#04x}", newId, address);
+        logToConsole(state, "Breakpoint {} at {:#04x}", newId, address);
 
         return 0;
     }

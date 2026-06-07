@@ -1,5 +1,6 @@
 #include "sm83.hpp"
 
+#include <cstring>
 #include <fmt/base.h>
 
 #include "cpu/exception.hpp"
@@ -21,11 +22,7 @@ enum : uint8_t
 static Event ei = Event::oneShot({
     .name = "EI",
     .prio = 0,
-    .callback =
-        [](size_t)
-        {
-            gb.cpu.ime = 1;
-        }
+    .callback = [](size_t){ gb.cpu.ime = 1; }
 });
 
 SM83::SM83()
@@ -34,18 +31,6 @@ SM83::SM83()
 }
 
 SM83::~SM83() = default;
-
-std::expected<bool, Exception> SM83::run()
-{
-    while (step() == 0 and not stopped);
-
-    if (exc) [[unlikely]]
-    {
-        return std::unexpected(exc);
-    }
-
-    return true;
-}
 
 void SM83::reset()
 {
@@ -118,23 +103,6 @@ void SM83::stop()
     stopped = true;
 }
 
-void SM83::skipBootRom()
-{
-    af  = 0x01b0;
-    bc  = 0x0013;
-    de  = 0x00d8;
-    hl  = 0x014d;
-    sp  = 0xfffe;
-    pc  = 0x100;
-    ie  = 0x00;
-    $if = 0x00;
-    ime = 0x0;
-
-    mem.store8(0xff50, 0x01); // Disable boot ROM
-    mem.store8(0xff40, 0x91); // Enable video
-    mem.store8(0xff41, 0x85);
-}
-
 void SM83::scheduleEi()
 {
     gb.events.cancelEvent(ei);
@@ -171,15 +139,7 @@ int SM83::execute(const cpu::isa::Opcode& opcode, cpu::isa::InstructionData data
 
 void SM83::clear()
 {
-    af  = 0;
-    bc  = 0;
-    de  = 0;
-    hl  = 0;
-    pc  = 0;
-    sp  = 0;
-    ie  = 0;
-    ime = 0;
-    $if = 0;
+    memset(&regs, 0, sizeof(regs));
 
     stopped      = false;
     halt         = false;

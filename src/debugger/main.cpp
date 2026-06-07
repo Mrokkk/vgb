@@ -1,41 +1,26 @@
 #include "main.hpp"
 
 #include <cstdio>
+#include <cstring>
 #include <expected>
 #include <iterator>
 #include <map>
 #include <unistd.h>
 
-#include <fmt/base.h>
-#include <fmt/color.h>
-#include <fmt/format.h>
-
-#include "config.hpp"
+#include "cpu/exception.hpp"
 #include "cpu/printers.hpp"
 #include "cpu/sm83.hpp"
+#include "debugger/games/registry.hpp"
+#include "debugger/imgui.hpp"
 #include "debugger/interpreter/command.hpp"
 #include "debugger/interpreter/commands.hpp"
 #include "debugger/interpreter/lexer.hpp"
 #include "debugger/interpreter/lexer_printers.hpp"
+#include "debugger/parser.hpp"
 #include "debugger/printer.hpp"
 #include "debugger/state.hpp"
 #include "game_boy.hpp"
-#include "sys/system.hpp"
-#include "utils/colors.hpp"
 #include "utils/string.hpp"
-
-namespace fmt
-{
-
-template <typename ...Args>
-std::string format_to_string(format_string<Args...> fmt, Args&&... args)
-{
-    std::string tmp;
-    format_to(std::back_inserter(tmp), fmt, std::forward<Args>(args)...);
-    return tmp;
-}
-
-}  // namespace fmt
 
 namespace debugger
 {
@@ -87,13 +72,7 @@ static std::expected<interpreter::Arguments, std::string> getArgs(const interpre
     return args;
 }
 
-struct CommandData
-{
-    const interpreter::Command& command;
-    interpreter::Arguments      args;
-};
-
-static std::expected<CommandData, std::string> parseCommand(const std::string_view& line)
+std::expected<CommandData, std::string> parseCommand(const std::string_view& line)
 {
     auto result = interpreter::parse(line);
 
@@ -136,7 +115,7 @@ static std::expected<CommandData, std::string> parseCommand(const std::string_vi
     };
 }
 
-void runCpu(State& state)
+static void runCpu(State& state)
 {
     while (1)
     {
@@ -152,7 +131,7 @@ void runCpu(State& state)
 
             if (breakpoint != state.breakpoints.end())
             {
-                fmt::println("Hit breakpoint {} at {:#04x}", breakpoint->second.id, breakpoint->second.address);
+                logToConsole(state, "Hit breakpoint {} at {:#04x}", breakpoint->second.id, breakpoint->second.address);
                 state.prevBreakpoint = state.cpu.pc;
                 state.stopped = true;
                 break;
@@ -171,69 +150,51 @@ void runCpu(State& state)
     }
     if (state.cpu.exc)
     {
-        fmt::println(COLOR_RED "Exception raised:" COLOR_RESET " {}", state.cpu.exc);
+        logToConsole(state, "Exception raised: {}", state.cpu.exc);
     }
-    printInstruction(state.cpu);
+    printInstruction(state, state.cpu);
 }
 
-void main()
+void main(GameBoy& gb)
 {
-    sys::stopSupervision();
-
-    fmt::println("Debugger mode");
-    fmt::println("For help, type \"help\"");
-
     State state{
         .cpu = gb.cpu,
         .stopped = true,
         .printRegs = false,
         .prevBreakpoint = -1,
-        .prompt = fmt::format_to_string("{} ", fmt::styled("(vgb)", fmt::fg(fmt::terminal_color::cyan))),
+        .prompt = "(vgb)",
     };
+
+    initImGui(state);
+    logToConsole(state, "Debugger mode");
+    logToConsole(state, "For help, type \"help\"");
+
+    gb.debuggerData = reinterpret_cast<void*>(&state);
+
+    state.game = games::Registry::createGame(gb.cartridge.getTitle());
 
     while (1)
     {
-        auto res = sys::readLineFromStdin(state.prompt);
+        if (state.cpu.exc.type == cpu::Exception::UserInterruption)
+        {
+            break;
+        }
 
-        if (not res) [[unlikely]]
+        while (state.stopped)
         {
-            fmt::println("Error reading from stdin: {}", res.error());
-            break;
-        }
-        else if (res->empty())
-        {
-            fmt::println("");
-            break;
-        }
-        else if (res->size() == 1 and res->at(0) == '\n')
-        {
-            if (state.prevLine.empty()) [[unlikely]]
+            gb.frame();
+
+            if (state.cpu.exc.type == cpu::Exception::UserInterruption)
             {
-                continue;
+                goto finish;
             }
-            res = state.prevLine;
         }
 
-        auto parsed = parseCommand(std::string(res.value()));
-
-        if (not parsed) [[unlikely]]
-        {
-            fmt::println("{}", parsed.error());
-            continue;
-        }
-
-        if (parsed->command.handler(state, parsed->args))
-        {
-            continue;
-        }
-
-        state.prevLine = *res;
-
-        if (not state.stopped)
-        {
-            runCpu(state);
-        }
+        runCpu(state);
     }
+
+finish:
+    gb.debuggerData = nullptr;
 }
 
 }  // namespace debugger

@@ -6,15 +6,16 @@
 #include "cpu/isa/opcode.hpp"
 #include "cpu/isa/printers.hpp"
 #include "cpu/sm83.hpp"
+#include "debugger/state.hpp"
 
 namespace debugger
 {
 
-void printInstruction(const cpu::SM83& cpu)
+void printInstruction(State& state, const cpu::SM83& cpu)
 {
     bool prefixed = false;
 
-    auto tmpPc = cpu.pc;
+    auto tmpPc = cpu.pc.get();
     cpu::isa::InstructionData tmpCache;
 
     uint8_t pcValue = tmpCache.appendOpcodeByte(cpu.mem.load8(tmpPc++));
@@ -32,17 +33,47 @@ void printInstruction(const cpu::SM83& cpu)
         tmpCache.appendImmByte(cpu.mem.load8(tmpPc++));
     }
 
-    fmt::println(
+    logToConsole(
+        state,
         "{pc:08x}:   {bytes}     | {asm}",
         fmt::arg("pc", cpu.pc.get()),
         fmt::arg("bytes", tmpCache),
         fmt::arg("asm", cpu::isa::decode(opcode, tmpCache)));
 }
 
-void printCpuRegs(const cpu::SM83& cpu)
+static const char* irqName(cpu::IRQ irq)
 {
+    switch (irq)
+    {
+        case cpu::IRQ::VBlank: return "VBlank";
+        case cpu::IRQ::LCD:    return "LCD";
+        case cpu::IRQ::Timer:  return "Timer";
+        case cpu::IRQ::Serial: return "Serial";
+        case cpu::IRQ::Joypad: return "Joypad";
+        default:               return "unknown";
+    }
+}
+
+static void printIrqs(uint8_t value)
+{
+    for (int i = 0; i < 5; ++i)
+    {
+        if ((1 << i) & value)
+        {
+            if (i > 0)
+            {
+                fmt::print(", ");
+            }
+            fmt::print("{}", irqName(static_cast<cpu::IRQ>(i)));
+        }
+    }
+}
+
+void printCpuRegs(State& state, const cpu::SM83& cpu)
+{
+    (void)printIrqs;
 #define PRINT_REGISTER(REG, WIDTH) \
-    fmt::println("  " #REG ": {:0" #WIDTH "x}", cpu.REG.get());
+    logToConsole(state, "  " #REG ": {:0" #WIDTH "x}", cpu.REG.get());
 
     PRINT_REGISTER(af, 4);
     PRINT_REGISTER(bc, 4);
@@ -51,15 +82,23 @@ void printCpuRegs(const cpu::SM83& cpu)
 
     PRINT_REGISTER(pc, 4);
     PRINT_REGISTER(sp, 4);
-    fmt::println("  f:  {{c: {}, h: {}, n: {}, z: {}}}",
-        cpu.f.c, cpu.f.h, cpu.f.n, cpu.f.z);
 
     PRINT_REGISTER(ime, 1);
+
     PRINT_REGISTER(ie, 2);
+
+    //fmt::print("; {{");
+    //printIrqs(cpu.ie);
+    //fmt::println("}}");
+
     PRINT_REGISTER($if, 2);
 
-    fmt::println("  T-cycles: {}", cpu.cycles);
-    fmt::println("  instructions: {}", cpu.instructions);
+    //fmt::print("; {{");
+    //printIrqs(cpu.$if);
+    //fmt::println("}}");
+
+    logToConsole(state, "  T-cycles:     {}", cpu.cycles);
+    logToConsole(state, "  instructions: {}", cpu.instructions);
 }
 
 }  // namespace debugger

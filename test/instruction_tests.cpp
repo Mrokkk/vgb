@@ -2,17 +2,23 @@
 
 #include <doctest.h>
 
-#include "config.hpp"
+#include "apu.hpp"
+#include "cpu/exception.hpp"
 #include "game_boy.hpp"
-#include "ppu/video.hpp"
-#include "sys/system.hpp"
+#include "input.hpp"
+#include "joypad.hpp"
+#include "ppu.hpp"
+#include "renderer.hpp"
+#include "test_config.hpp"
+#include "timer.hpp"
+#include "utils/units.hpp"
 
 GameBoy gb;
 
 struct TestData
 {
     const char*   name;
-    const uint8_t rom[32 * 1024];
+    const uint8_t rom[32 * KiB];
 };
 
 static const TestData data[] = {
@@ -111,17 +117,15 @@ struct Fixture
     Fixture()
     {
         static bool initialized = false;
-        static Config config{
-            .skipBootRom = true,
-            .videoConfig = VideoConfig::Headless,
-        };
         if (not initialized)
         {
-            sys::finalize();
-            gb.vid.start(config);
-            gb.inp.start(config);
-            gb.cpu.skipBootRom();
-            gb.cpu.timer.start();
+            createRenderer(gb, testConfig);
+            createInput(gb, testConfig);
+            createPpu(gb, testConfig);
+            createJoypad(gb, testConfig);
+            createApu(gb, testConfig);
+            createTimer(gb, testConfig);
+            gb.skipBootRom();
             initialized = true;
         }
         else
@@ -161,8 +165,8 @@ TEST_CASE_FIXTURE(Fixture, "instruction_tests")
         SUBCASE(data[i].name)
         {
             gb.cartridge.initialize(data[i].rom, nullptr);
-            auto result = gb.cpu.run();
-            CHECK_FALSE(result);
+            gb.run();
+            CHECK_EQ(gb.cpu.exc.type, cpu::Exception::InfiniteLoop);
             auto str = readTestOutput();
             CHECK_FALSE(not str.contains("Passed"));
         }

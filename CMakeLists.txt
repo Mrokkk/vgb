@@ -25,12 +25,32 @@ set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
 
 FetchContent_Declare(fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt
-    GIT_TAG master
+    GIT_TAG 407c905e45ad75fc29bf0f9bb7c5c2fd3475976f # tag: 12.1.0
 )
 
 FetchContent_Declare(raylib
     GIT_REPOSITORY https://github.com/raysan5/raylib
-    GIT_TAG master
+    GIT_TAG dbc56a87da87d973a9c5baa4e7438a9d20121d28 # tag: 6.0
+)
+
+FetchContent_Declare(imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui
+    GIT_TAG b61e56346a92cfcaf1f43a545ca37b0b32239654 # tag: v1.92.8-docking
+)
+
+FetchContent_Declare(imgui_club
+    GIT_REPOSITORY https://github.com/ocornut/imgui_club.git
+    GIT_TAG a7eab6ccb9fec09f37705406a06bb3bfc09597fe # master
+)
+
+FetchContent_Declare(rlimgui
+    GIT_REPOSITORY https://github.com/raylib-extras/rlImGui
+    GIT_TAG 3bc5731c4216bb8caa67fbea24aa85ce80d57ccb # tag: Raylib_6_0
+)
+
+FetchContent_Declare(argh
+    GIT_REPOSITORY https://github.com/adishavit/argh
+    GIT_TAG c3f0d8c8a6dacb00df626b409248a34e3bcd15f5 # master
 )
 
 set(DOCTEST_VERSION v2.4.11)
@@ -40,17 +60,31 @@ FetchContent_Declare(doctest
     DOWNLOAD_NO_EXTRACT TRUE
 )
 
-FetchContent_Declare(argh
-    GIT_REPOSITORY https://github.com/adishavit/argh
-    GIT_TAG master
-)
-
 FetchContent_MakeAvailable(fmt)
 FetchContent_MakeAvailable(raylib)
+FetchContent_MakeAvailable(imgui)
+FetchContent_MakeAvailable(imgui_club)
+FetchContent_MakeAvailable(rlimgui)
 FetchContent_MakeAvailable(doctest)
 FetchContent_MakeAvailable(argh)
 
 set(DOCTEST_INCLUDE_DIR ${doctest_SOURCE_DIR})
+
+add_library(imgui OBJECT
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+)
+target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR})
+
+add_library(rlimgui OBJECT
+    ${rlimgui_SOURCE_DIR}/rlImGui.cpp
+)
+target_include_directories(rlimgui PUBLIC ${rlimgui_SOURCE_DIR})
+target_link_libraries(rlimgui PRIVATE raylib imgui)
+target_compile_options(rlimgui PRIVATE -Wno-error)
 
 include(FindPkgConfig)
 pkg_check_modules(BACKTRACE REQUIRED libbacktrace)
@@ -85,23 +119,27 @@ set(COMMON_LIBRARIES
 
 add_library(emulator OBJECT
 
-    src/apu/sound.cpp
+    src/apu.cpp
     src/cpu/isa/decoder.cpp
     src/cpu/isa/instruction_set.cpp
     src/cpu/isa/opcode.cpp
     src/cpu/isa/printers.cpp
     src/cpu/printers.cpp
     src/cpu/sm83.cpp
-    src/cpu/timer.cpp
     src/event_system.cpp
     src/game_boy.cpp
-    src/input/input.cpp
+    src/input.cpp
+    src/joypad.cpp
+    src/logger.cpp
     src/memory/cartridge.cpp
-    src/memory/io.cpp
     src/memory/memory.cpp
     src/memory/printers.cpp
-    src/ppu/video.cpp
+    src/ppu.cpp
+    src/raylib/input.cpp
+    src/raylib/renderer.cpp
+    src/renderer.cpp
     src/sys/posix.cpp
+    src/timer.cpp
     src/utils/buffer.cpp
     src/utils/string.cpp
     src/utils/time.cpp
@@ -122,6 +160,9 @@ add_library(debugger OBJECT
     src/debugger/commands/set.cpp
     src/debugger/commands/step.cpp
     src/debugger/commands/watch.cpp
+    src/debugger/games/pokemon_red.cpp
+    src/debugger/games/registry.cpp
+    src/debugger/imgui.cpp
     src/debugger/interpreter/command.cpp
     src/debugger/interpreter/commands.cpp
     src/debugger/interpreter/lexer.cpp
@@ -131,20 +172,20 @@ add_library(debugger OBJECT
 
 )
 
-target_link_libraries(emulator PUBLIC ${COMMON_LIBRARIES})
-target_link_libraries(debugger PUBLIC fmt::fmt)
+target_include_directories(debugger PUBLIC ${imgui_club_SOURCE_DIR})
+target_link_libraries(emulator PUBLIC ${COMMON_LIBRARIES} imgui rlimgui)
+target_link_libraries(debugger PUBLIC fmt::fmt imgui)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE emulator debugger)
+target_link_libraries(${PROJECT_NAME} PRIVATE emulator debugger imgui rlimgui)
 
 add_executable(test
-
     test/instruction_tests.cpp
     test/main.cpp
 )
 
-target_link_libraries(test PUBLIC emulator)
+target_link_libraries(test PUBLIC emulator debugger imgui rlimgui)
 
 if(SANITIZE)
     set_source_files_properties(src/cpu/isa/instruction_set.cpp PROPERTIES COMPILE_OPTIONS -fno-var-tracking-assignments)

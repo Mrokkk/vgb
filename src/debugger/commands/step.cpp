@@ -10,7 +10,7 @@ DEFINE_COMMAND(step)
     EXECUTOR()
     {
         gb.cpu.step();
-        printInstruction(gb.cpu);
+        printInstruction(state, gb.cpu);
         return 0;
     }
 

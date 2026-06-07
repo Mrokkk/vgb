@@ -2,9 +2,9 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <fmt/base.h>
 
 #include "event.hpp"
-#include "fmt/base.h"
 
 EventSystem::EventSystem()
     : mHead(new Event())
@@ -31,7 +31,7 @@ void EventSystem::update(size_t cycles)
 
         if (cur->type == Event::Type::Repeating)
         {
-            scheduleEvent(*cur, cycles + cur->data.period);
+            scheduleEvent(*cur, cur->when + cur->data.period);
         }
 
         cur->data.callback(cycles);

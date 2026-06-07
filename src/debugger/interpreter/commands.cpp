@@ -7,7 +7,7 @@
 namespace debugger::interpreter
 {
 
-struct CommandsMap
+struct CommandsMap final
 {
     static std::map<std::string_view, Command>& get()
     {

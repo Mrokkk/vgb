@@ -1,25 +1,22 @@
 #include "units.hpp"
 
-#include <ostream>
-
-namespace utils::detail
+namespace utils
 {
 
-std::ostream& operator<<(std::ostream& os, const detail::HumanReadableSize::Data& d)
+detail::HumanReadableSize humanReadable(uint64_t value)
 {
-    if (d.value >= MiB)
+    if (value >= MiB)
     {
-        os << d.value / MiB << " MiB";
+        return {value / MiB, "MiB"};
     }
-    else if (d.value >= KiB)
+    else if (value >= KiB)
     {
-        os << d.value / KiB << " KiB";
+        return {value / KiB, "KiB"};
     }
     else
     {
-        os << d.value << " B";
+        return {value, "B"};
     }
-    return os;
 }
 
-}  // namespace utils::detail
+}  // namespace utils

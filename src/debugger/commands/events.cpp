@@ -1,6 +1,7 @@
 #include <fmt/base.h>
 
 #include "debugger/interpreter/command.hpp"
+#include "debugger/state.hpp"
 #include "event.hpp"
 #include "game_boy.hpp"
 
@@ -13,9 +14,9 @@ DEFINE_COMMAND(events)
     {
         int i = 0;
         gb.events.forEachEvent(
-            [&i](const Event& ev)
+            [&i, &state](const Event& ev)
             {
-                fmt::println("{}: {} in {} cycles", i++, ev.getName(), ev.getWhen() - gb.cpu.cycles);
+                logToConsole(state, "{}: {} in {} cycles", i++, ev.getName(), ev.getWhen() - gb.cpu.cycles);
             });
         return 0;
     }

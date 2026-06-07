@@ -26,6 +26,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include "config.hpp"
 #include "game_boy.hpp"
 #include "utils/string.hpp"
 
@@ -196,8 +197,11 @@ void pingSupervision()
 
 void stopSupervision()
 {
+    if (stop)
+    {
+        return;
+    }
     stop = true;
-
     if (supervisionThread.joinable())
     {
         supervisionThread.join();
@@ -351,8 +355,6 @@ static void crashHandle(int sig, siginfo_t* info, void* context)
 
     stacktraceLogInternal();
 
-    finalize();
-
     if (sig == SIGABRT)
     {
         abort();
@@ -364,55 +366,51 @@ static void interruptionHandle(int)
     gb.cpu.stop();
 }
 
-void initialize()
+void initialize(const Config& config)
 {
-    auto libbacktrace = dlopen("libbacktrace.so", RTLD_LAZY);
+    struct sigaction sa;
+    sa.sa_sigaction = &crashHandle;
+    sigemptyset(&sa.sa_mask);
+
+    const auto libbacktrace = dlopen("libbacktrace.so", RTLD_LAZY);
 
     if (not libbacktrace)
     {
         fprintf(stderr, "cannot load libbacktrace.so\n");
-        return;
+    }
+    else
+    {
+        sa.sa_flags = SA_RESETHAND | SA_SIGINFO;
+
+        sigaction(SIGABRT, &sa, nullptr);
+        sigaction(SIGBUS,  &sa, nullptr);
+        sigaction(SIGFPE,  &sa, nullptr);
+        sigaction(SIGILL,  &sa, nullptr);
+        sigaction(SIGSEGV, &sa, nullptr);
+
+        backtraceCreateState = reinterpret_cast<BacktraceCreateStateFn>(dlsym(libbacktrace, "backtrace_create_state"));
+        backtraceFull = reinterpret_cast<BacktraceFullFn>(dlsym(libbacktrace, "backtrace_full"));
+
+        if (not backtraceFull or not backtraceCreateState)
+        {
+            fprintf(stderr, "cannot find backtrace_full or backtrace_create_state\n");
+            backtraceFull = nullptr;
+            backtraceCreateState = nullptr;
+            return;
+        }
+
+        backtraceState = backtraceCreateState(NULL, 0, backtraceErrorCallback, NULL);
     }
 
-    struct sigaction sa;
-    sa.sa_sigaction = &crashHandle;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESETHAND | SA_SIGINFO;
-
-    sigaction(SIGABRT, &sa, nullptr);
-    sigaction(SIGBUS,  &sa, nullptr);
-    sigaction(SIGFPE,  &sa, nullptr);
-    sigaction(SIGILL,  &sa, nullptr);
-    sigaction(SIGSEGV, &sa, nullptr);
-
-    sa.sa_handler = &interruptionHandle;
     sa.sa_flags = 0;
+    sa.sa_handler = &interruptionHandle;
 
     sigaction(SIGINT, &sa, nullptr);
 
-    supervisionThread = std::thread(&supervision);
-
-    backtraceCreateState = reinterpret_cast<BacktraceCreateStateFn>(dlsym(libbacktrace, "backtrace_create_state"));
-    backtraceFull = reinterpret_cast<BacktraceFullFn>(dlsym(libbacktrace, "backtrace_full"));
-
-    if (not backtraceFull or not backtraceCreateState)
+    if (config.useSupervision)
     {
-        fprintf(stderr, "cannot find backtrace_full or backtrace_create_state\n");
-        backtraceFull = nullptr;
-        backtraceCreateState = nullptr;
-        return;
-    }
-
-    backtraceState = backtraceCreateState(NULL, 0, backtraceErrorCallback, NULL);
-}
-
-void finalize()
-{
-    stop = true;
-
-    if (supervisionThread.joinable())
-    {
-        supervisionThread.join();
+        supervisionThread = std::thread(&supervision);
+        atexit(&stopSupervision);
     }
 }
 

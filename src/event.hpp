@@ -6,7 +6,7 @@
 
 struct EventSystem;
 
-struct Event
+struct Event final
 {
     using Callback = std::move_only_function<void(size_t)>;
 
@@ -19,9 +19,9 @@ struct Event
     struct Data
     {
         const char* name;
-        uint8_t  prio;
-        size_t   period;
-        Callback callback;
+        uint8_t     prio;
+        size_t      period;
+        Callback    callback;
     };
 
     static Event oneShot(Data data)

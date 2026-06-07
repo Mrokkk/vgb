@@ -6,7 +6,7 @@
 
 struct Event;
 
-struct EventSystem
+struct EventSystem final
 {
     EventSystem();
     ~EventSystem();

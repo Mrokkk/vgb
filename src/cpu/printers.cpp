@@ -5,28 +5,32 @@
 #include "cpu/exception.hpp"
 #include "cpu/sm83.hpp"
 
-fmt::format_context::iterator fmt::formatter<cpu::Exception>::format(const cpu::Exception& exc, format_context& ctx) const
+using namespace cpu;
+
+fmt::format_context::iterator fmt::formatter<Exception>::format(const Exception& exc, format_context& ctx) const
 {
     switch (exc.type)
     {
-        case cpu::Exception::NotImplemented:
+        case Exception::NotImplemented:
             return format_to(ctx.out(), "instruction not implemented: {:02x}", exc.value);
-        case cpu::Exception::InvalidOpcode:
+        case Exception::InvalidOpcode:
             return format_to(ctx.out(), "invalid opcode: {:02x}", exc.value);
-        case cpu::Exception::SegmentationFault:
-            return format_to(ctx.out(), "segmentation fault caused by {} address {:04x}", exc.segmentationFault.write ? "write to" : "read from", exc.segmentationFault.addr);
-        case cpu::Exception::InfiniteLoop:
+        case Exception::SegmentationFault:
+            return exc.segmentationFault.write
+                ? format_to(ctx.out(), "segmentation fault caused by writing {:02x} to address {:04x}", exc.segmentationFault.value, exc.segmentationFault.addr)
+                : format_to(ctx.out(), "segmentation fault caused by reading from address {:04x}", exc.segmentationFault.addr);
+        case Exception::InfiniteLoop:
             return format_to(ctx.out(), "infinite loop detected");
-        case cpu::Exception::UserInterruption:
+        case Exception::UserInterruption:
             return format_to(ctx.out(), "user interruption");
-        case cpu::Exception::Halt:
+        case Exception::Halt:
             return format_to(ctx.out(), "CPU is halted");
         default:
             return format_to(ctx.out(), "unknown exception: {}", +exc.type);
     }
 }
 
-fmt::format_context::iterator fmt::formatter<cpu::SM83>::format(const cpu::SM83& cpu, format_context& ctx) const
+fmt::format_context::iterator fmt::formatter<SM83>::format(const SM83& cpu, format_context& ctx) const
 {
     auto it = ctx.out();
 

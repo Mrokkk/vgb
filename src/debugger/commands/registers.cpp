@@ -9,7 +9,7 @@ DEFINE_COMMAND(registers)
 {
     EXECUTOR()
     {
-        printCpuRegs(gb.cpu);
+        printCpuRegs(state, gb.cpu);
         return 0;
     }
 

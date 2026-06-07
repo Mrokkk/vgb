@@ -1,50 +1,67 @@
-#include "video.hpp"
+#include "ppu.hpp"
 
 #include <cstdio>
 #include <cstring>
 
 #include <fmt/base.h>
-#include <raylib.h>
 
+#include "component.hpp"
 #include "config.hpp"
 #include "cpu/sm83.hpp"
 #include "event.hpp"
+#include "fwd.hpp"
 #include "game_boy.hpp"
-#include "sys/system.hpp"
+#include "memory/generic.hpp"
 #include "utils/inline.hpp"
+#include "utils/unique_ptr.hpp"
 
 #define RAYLIB_LOG 0
 
-namespace ppu
+struct Ppu final : Component
 {
+    Ppu(const Config& config);
 
-static void raylibLogFormat(int msgType, const char* text, va_list args)
-{
-    if (not RAYLIB_LOG)
+    void reset() override;
+
+    void store(uint16_t address, uint8_t value) override;
+    uint8_t load(uint16_t address) const override;
+
+    void initPpu();
+    void drawLine();
+
+    ALWAYS_INLINE void mode0Callback();
+    ALWAYS_INLINE void mode1Callback();
+    ALWAYS_INLINE void mode2Callback();
+    ALWAYS_INLINE void mode3Callback();
+    ALWAYS_INLINE void dmaCallback();
+
+    ALWAYS_INLINE void updateBgPalette();
+    ALWAYS_INLINE void updateObjPalette();
+
+    struct IOImpl;
+    IOImpl& getIo();
+
+    using BaseIO = memory::GenericIO<0xff4c - 0xff40>;
+
+    struct IO : BaseIO
     {
-        return;
-    }
+        void store(uint8_t addr, uint8_t value);
+        uint8_t load(uint8_t addr) const;
+    };
 
-    fprintf(stderr, "[Raylib] ");
-
-    switch (msgType)
-    {
-        case LOG_INFO:    fprintf(stderr, "[INF] "); break;
-        case LOG_ERROR:   fprintf(stderr, "[ERR] "); break;
-        case LOG_WARNING: fprintf(stderr, "[WRN] "); break;
-        case LOG_DEBUG:   fprintf(stderr, "[DBG] "); break;
-        default:          fprintf(stderr, "[???] "); break;
-    }
-
-    vfprintf(stderr, text, args);
-    fputc('\n', stderr);
-}
+    bool      graphical;
+    Event     dma;
+    Event     mode0;
+    Event     mode1;
+    Event     mode2;
+    Event     mode3;
+    IO        io;
+    uint8_t   bgPalette[4];
+    uint8_t   objPalette[8];
+};
 
 enum
 {
-    GB_LCD_RESX       = 160,
-    GB_LCD_RESY       = 144,
-
     GB_TILE_RESX      = 8,
     GB_TILE_RESY      = 8,
     GB_TILE_BYTES     = 16,
@@ -135,7 +152,7 @@ DEFINE_REGISTER(STAT,
 
 using LY = Counter<uint8_t, VSYNC_LY_END>;
 
-struct Video::IOImpl
+struct Ppu::IOImpl
 {
     LCDC    lcdc;
     STAT    stat;
@@ -151,80 +168,87 @@ struct Video::IOImpl
     uint8_t wx;
 };
 
-static const Color colors[] = {
-    {0xff, 0xff, 0xff, 0xff},
-    {0x80, 0x80, 0x80, 0xff},
-    {0x50, 0x50, 0x50, 0xff},
-    {0x00, 0x00, 0x00, 0xff},
-};
-
-Video::Video()
-    : mGraphical(false)
+Ppu::Ppu(const Config& config)
+    : graphical(config.videoConfig == VideoConfig::Graphical)
+    , dma(Event::oneShot({
+        .name = "OAM DMA",
+        .prio = 0,
+        .callback = [this](size_t){ dmaCallback(); }
+    }))
+    , mode0(Event::repeating({
+        .name = "PPU Mode 0",
+        .prio = 0,
+        .period = HSYNC_DURATION,
+        .callback = [this](size_t){ mode0Callback(); }
+    }))
+    , mode1(Event::repeating({
+        .name = "PPU Mode 1",
+        .prio = 0,
+        .period = FRAME_DURATION,
+        .callback = [this](size_t){ mode1Callback(); }
+    }))
+    , mode2(Event::repeating({
+        .name = "PPU Mode 2",
+        .prio = 1,
+        .period = HSYNC_DURATION,
+        .callback = [this](size_t){ mode2Callback(); }
+    }))
+    , mode3(Event::repeating({
+        .name = "PPU Mode 3",
+        .prio = 0,
+        .period = HSYNC_DURATION,
+        .callback = [this](size_t){ mode3Callback(); }
+    }))
 {
-}
-
-Video::~Video()
-{
-    if (mGraphical)
-    {
-        CloseWindow();
-    }
-}
-
-static Image screenImage;
-static Texture2D screenTexture;
-
-static Event hsync = Event::repeating({
-    .name = "HSYNC",
-    .prio = 0,
-    .period = HSYNC_DURATION,
-});
-
-static Event dma = Event::oneShot({
-    .name = "OAM DMA",
-    .prio = 0,
-});
-
-#define RENDER() \
-    for (int i = (BeginDrawing(), 0); i == 0; i = (EndDrawing(), 1))
-
-ALWAYS_INLINE Video::IOImpl& Video::getIo()
-{
-    return *reinterpret_cast<Video::IOImpl*>(io.data);
-}
-
-void Video::start(const Config& config)
-{
-    mGraphical = config.videoConfig == VideoConfig::Graphical;
-
-    initPpu();
-
-    if (mGraphical)
-    {
-        initRenderer();
-    }
-}
-
-void Video::reset()
-{
-    memset(io.data, 0, sizeof(io.data));
-    memset(oam.data, 0, sizeof(oam.data));
-    memset(vram.data, 0, sizeof(vram.data));
     initPpu();
 }
 
-void Video::initRenderer()
+ALWAYS_INLINE Ppu::IOImpl& Ppu::getIo()
 {
-    SetTraceLogCallback(raylibLogFormat);
-    InitWindow(GB_LCD_RESX * SCALING, GB_LCD_RESY * SCALING, "GameBoy");
-
-    SetTargetFPS(60);
-
-    screenImage = GenImageColor(GB_LCD_RESX, GB_LCD_RESY, WHITE);
-    screenTexture = LoadTextureFromImage(screenImage);
+    return *reinterpret_cast<Ppu::IOImpl*>(io.data);
 }
 
-void Video::initPpu()
+void Ppu::reset()
+{
+    initPpu();
+}
+
+void Ppu::store(uint16_t address, uint8_t value)
+{
+    if (address == offsetof(IOImpl, dma))
+    {
+        gb.events.scheduleEvent(dma, gb.cpu.cycles + DMA_DURATION);
+    }
+    else if (address == offsetof(IOImpl, bgp))
+    {
+        auto& io = getIo();
+        io.bgp = value;
+        updateBgPalette();
+        return;
+    }
+    else if (address == offsetof(IOImpl, obp0))
+    {
+        auto& io = getIo();
+        io.obp0 = value;
+        updateObjPalette();
+        return;
+    }
+    else if (address == offsetof(IOImpl, obp1))
+    {
+        auto& io = getIo();
+        io.obp1 = value;
+        updateObjPalette();
+        return;
+    }
+    return io.store(address, value);
+}
+
+uint8_t Ppu::load(uint16_t address) const
+{
+    return io.load(address);
+}
+
+void Ppu::initPpu()
 {
     auto& ioRo = *reinterpret_cast<IOImpl*>(io.roMasks);
 
@@ -234,61 +258,15 @@ void Video::initPpu()
     ioRo.ly = 0xff;
 
     auto& io = getIo();
-    io.ly = VSYNC_LY_START - 1;
+    io.ly = VSYNC_LY_END - 1;
 
-    if (mGraphical)
-    {
-        hsync.setCallback(
-            [this](size_t)
-            {
-                auto& io = getIo();
-                if (io.ly < VSYNC_LY_START)
-                {
-                    drawLine();
-                }
-                if (++io.ly == VSYNC_LY_START)
-                {
-                    renderFrame();
-                    gb.cpu.raiseIrq(cpu::IRQ::VBlank);
-                    io.stat.ppuMode = 1;
-                }
-                else
-                {
-                    io.stat.ppuMode = 3;
-                }
-            });
-    }
-    else
-    {
-        hsync.setCallback(
-            [this](size_t)
-            {
-                auto& io = getIo();
-                if (++io.ly == VSYNC_LY_START)
-                {
-                    gb.cpu.raiseIrq(cpu::IRQ::VBlank);
-                    io.stat.ppuMode = 1;
-                }
-                else
-                {
-                    io.stat.ppuMode = 3;
-                }
-            });
-    }
+    gb.events.scheduleEvent(mode0, 369);
+    gb.events.scheduleEvent(mode1, FRAME_DURATION - 4560);
+    gb.events.scheduleEvent(mode2, 0);
+    gb.events.scheduleEvent(mode3, 80);
 
-    dma.setCallback(
-        [this](size_t)
-        {
-            auto& io = getIo();
-            uint16_t src = ((uint16_t)io.dma << 8);
-
-            for (uint16_t i = 0; i < GB_OAM_SIZE; ++i)
-            {
-                oam.data[i] = gb.cpu.mem.load8(src + i);
-            }
-        });
-
-    gb.events.scheduleEvent(hsync, HSYNC_DURATION);
+    updateBgPalette();
+    updateObjPalette();
 }
 
 struct Object
@@ -322,7 +300,7 @@ static uint8_t getColorIndexFromTile(uint8_t* tile, uint8_t pixel)
         | (((tile[1] >> (7 - (pixel % 8))) & 1) << 1);
 }
 
-void Video::drawLine()
+void Ppu::drawLine()
 {
     auto& io = getIo();
 
@@ -331,19 +309,6 @@ void Video::drawLine()
 
     const bool useWindow = io.lcdc.windowEnable and io.wy <= io.ly;
     bool unsig;
-
-    Color bgPalette[4];
-    Color objPalette[8];
-
-    for (int i = 0; i < 4; ++i)
-    {
-        bgPalette[i] = colors[getColorFromPalette(io.bgp, i)];
-    }
-
-    for (int i = 0; i < 8; ++i)
-    {
-        objPalette[i] = colors[getColorFromPalette(*(&io.obp0 + i / 4) & ~3, i % 4)];
-    }
 
     uint16_t tileData;
 
@@ -369,11 +334,14 @@ void Video::drawLine()
     Object objs[10];
     int objIndex = 0;
 
+    auto& oam = gb.cpu.mem.oam;
+    auto& vram = gb.cpu.mem.vram;
+
     if (io.lcdc.objEnable)
     {
         for (uint16_t i = 0; i < GB_OAM_SIZE and objIndex < 10; i += sizeof(Object))
         {
-            const auto obj = reinterpret_cast<Object*>(oam.data + i);
+            const auto obj = reinterpret_cast<const Object*>(oam.data + i);
 
             if ((y + 16 >= obj->yPos) and (y + 8 < obj->yPos))
             {
@@ -403,8 +371,7 @@ void Video::drawLine()
 
         const auto bgColor = getColorIndexFromTile(&vram.data[tileLocation + line], xPos % 8);
 
-        ImageDrawPixel(&screenImage, x, y, bgPalette[bgColor]);
-
+        bool gotObj = false;
         for (int i = 0; i < objIndex; ++i)
         {
             const auto obj = &objs[i];
@@ -426,59 +393,113 @@ void Video::drawLine()
                 }
                 if (not obj->attr.prio or bgColor == 0)
                 {
-                    ImageDrawPixel(&screenImage, x, y, objPalette[color + obj->attr.dmgPalette * 4]);
+                    gb.renderer->drawPixel(x, y, objPalette[color + obj->attr.dmgPalette * 4]);
+                    gotObj = true;
                 }
                 break;
             }
         }
+        if (not gotObj)
+        {
+            gb.renderer->drawPixel(x, y, bgPalette[bgColor]);
+        }
     }
 }
 
-void Video::renderFrame()
+ALWAYS_INLINE void Ppu::mode0Callback()
+{
+    auto& io = getIo();
+    if (io.ly < 144)
+    {
+        drawLine();
+        io.stat.ppuMode = 0;
+        if (io.stat.intMode0)
+        {
+            gb.cpu.raiseIrq(cpu::IRQ::LCD);
+        }
+    }
+}
+
+ALWAYS_INLINE void Ppu::mode1Callback()
+{
+    gb.frame();
+    auto& io = getIo();
+    io.stat.ppuMode = 1;
+    gb.cpu.raiseIrq(cpu::IRQ::VBlank);
+    if (io.stat.intMode1)
+    {
+        gb.cpu.raiseIrq(cpu::IRQ::LCD);
+    }
+}
+
+ALWAYS_INLINE void Ppu::mode2Callback()
 {
     auto& io = getIo();
 
-    sys::pingSupervision();
-
-    if (WindowShouldClose()) [[unlikely]]
+    if (++io.ly < 144)
     {
-        gb.cpu.exc.reportUserInterruption();
-        return;
-    }
-
-    if (not io.lcdc.lcdEnable) [[unlikely]]
-    {
-        RENDER()
+        io.stat.ppuMode = 2;
+        if (io.stat.intMode2)
         {
-            ClearBackground(WHITE);
-            DrawFPS(SCALING * GB_LCD_RESX - 100, 20);
+            gb.cpu.raiseIrq(cpu::IRQ::LCD);
         }
-
-        return;
     }
-
-    UpdateTexture(screenTexture, screenImage.data);
-
-    RENDER()
+    if (io.stat.intLyc and io.ly == io.lyc)
     {
-        ClearBackground(BLACK);
-        DrawTextureEx(screenTexture, Vector2{0, 0}, 0.0f, SCALING, WHITE);
-        DrawFPS(SCALING * GB_LCD_RESX - 100, 20);
+        gb.cpu.raiseIrq(cpu::IRQ::LCD);
     }
 }
 
-void Video::IO::store(uint8_t addr, uint8_t value)
+ALWAYS_INLINE void Ppu::mode3Callback()
 {
-    if (addr == offsetof(IOImpl, dma))
+    auto& io = getIo();
+    if (io.ly < 144)
     {
-        gb.events.scheduleEvent(dma, gb.cpu.cycles + DMA_DURATION);
+        io.stat.ppuMode = 3;
     }
+}
+
+void Ppu::dmaCallback()
+{
+    auto& io = getIo();
+    auto& mem = gb.cpu.mem;
+    uint16_t src = ((uint16_t)io.dma << 8);
+
+    for (uint16_t i = 0; i < GB_OAM_SIZE; ++i)
+    {
+        mem.oam.data[i] = mem.load8(src + i);
+    }
+}
+
+ALWAYS_INLINE void Ppu::updateBgPalette()
+{
+    auto& io = getIo();
+    for (int i = 0; i < 4; ++i)
+    {
+        bgPalette[i] = getColorFromPalette(io.bgp, i);
+    }
+}
+
+ALWAYS_INLINE void Ppu::updateObjPalette()
+{
+    auto& io = getIo();
+    for (int i = 0; i < 8; ++i)
+    {
+        objPalette[i] = getColorFromPalette(*(&io.obp0 + i / 4) & ~3, i % 4);
+    }
+}
+
+void Ppu::IO::store(uint8_t addr, uint8_t value)
+{
     return BaseIO::store(addr, value);
 }
 
-uint8_t Video::IO::load(uint8_t addr) const
+uint8_t Ppu::IO::load(uint8_t addr) const
 {
     return BaseIO::load(addr);
 }
 
-}  // namespace ppu
+void createPpu(GameBoy& gb, const Config& config)
+{
+    gb.registerComponent(Component::Ppu, utils::makeUnique<Ppu>(config));
+}

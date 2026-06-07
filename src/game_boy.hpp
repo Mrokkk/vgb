@@ -1,29 +1,42 @@
 #pragma once
 
-#include "apu/sound.hpp"
+#include "component.hpp"
+#include "config.hpp"
 #include "cpu/sm83.hpp"
 #include "event_system.hpp"
 #include "fwd.hpp"
-#include "input/input.hpp"
+#include "input.hpp"
 #include "memory/cartridge.hpp"
-#include "ppu/video.hpp"
+#include "renderer.hpp"
+#include "utils/immobile.hpp"
+#include "utils/unique_ptr.hpp"
 
-struct GameBoy
+struct GameBoy final : utils::Immobile
 {
-    void start(const void* cartridge, void* ram, const Config& config);
+    GameBoy();
+    ~GameBoy();
+
+    void start(void* cartridge, void* ram, const Config& config);
     void run();
+    bool stop();
     void reset();
     void skipBootRom();
+    void frame();
 
+    void registerComponent(Component::Type type, utils::UniquePtr<Component> component);
+
+    unsigned          speedMultiplier;
+    size_t            frameNumber;
     cpu::SM83         cpu;
-    ppu::Video        vid;
-    input::Input      inp;
-    apu::Sound        snd;
     memory::Cartridge cartridge;
     EventSystem       events;
 
-private:
-    bool mSkipBootRom;
+    ComponentPtr components[Component::Type::Last + 1];
+    RendererPtr renderer;
+    InputPtr input;
+    Config config;
+    bool inputEnabled;
+    void* debuggerData;
 };
 
 extern GameBoy gb;
