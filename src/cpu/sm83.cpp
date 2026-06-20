@@ -9,6 +9,7 @@
 #include "event.hpp"
 #include "event_system.hpp"
 #include "game_boy.hpp"
+#include "serializator.hpp"
 
 namespace cpu
 {
@@ -28,6 +29,14 @@ static Event ei = Event::oneShot({
 SM83::SM83()
 {
     clear();
+    Serializator::registerData(regs);
+    Serializator::registerData(lastRegs);
+    Serializator::registerData(reinterpret_cast<void*>(&exc), sizeof(exc));
+    Serializator::registerData(state);
+    Serializator::registerData(cycles);
+    Serializator::registerData(instructions);
+    Serializator::registerData(reinterpret_cast<void*>(&mem), sizeof(mem));
+    Serializator::registerEvents({&ei});
 }
 
 SM83::~SM83() = default;

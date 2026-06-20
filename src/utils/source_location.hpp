@@ -9,8 +9,23 @@ namespace utils
 struct SourceLocation
 {
     consteval static SourceLocation current(
-        const char* file = __builtin_FILE(),
         const char* func = __builtin_FUNCTION(),
+        const char* file = __builtin_FILE(),
+        size_t line = __builtin_LINE())
+    {
+        std::string_view sv(file);
+        sv.remove_prefix(sv.find("src"));
+
+        return SourceLocation{
+            .file = sv.data(),
+            .func = func,
+            .line = line,
+        };
+    }
+
+    constexpr static SourceLocation custom(
+        const char* func = __builtin_FUNCTION(),
+        const char* file = __builtin_FILE(),
         size_t line = __builtin_LINE())
     {
         std::string_view sv(file);

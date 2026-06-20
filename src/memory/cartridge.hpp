@@ -127,9 +127,10 @@ struct Cartridge final : utils::Immobile
     enum MBC MBC() const;
 
 private:
-    bool     mRamEnabled:1;
-    bool     mRamDirty:1;
-    bool     mAllocatedRam:1;
+    bool     mRamEnabled;
+    bool     mRamDirty;
+    bool     mAllocatedRam;
+    bool     mDataRegistered;
     enum MBC mMBC:4;
     char     mTitle[17];
 

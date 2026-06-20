@@ -73,7 +73,7 @@ struct BankedMemory
         return RANGE.size() * BANKS;
     }
 
-    size_t bank = 0;
+    size_t bank;
     uint8_t data[size()];
 };
 

@@ -1,3 +1,4 @@
+#include "serializator.hpp"
 #define LOG_HEADER "RaylibRenderer"
 
 #include "renderer.hpp"
@@ -94,6 +95,8 @@ RaylibRenderer::RaylibRenderer()
 
         rlImGuiSetup(true);
     }
+
+    Serializator::registerData(mScreenImage.data, mScreenImage.height * mScreenImage.width * 4);
 }
 
 RaylibRenderer::~RaylibRenderer()

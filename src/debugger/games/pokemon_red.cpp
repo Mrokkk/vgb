@@ -77,7 +77,6 @@ static const char* readString(char* buffer, const uint8_t* data, size_t size)
 #define RADIO_BUTTONS_3(TITLE, NAME0, VARIABLE0, VALUE0, NAME1, VARIABLE1, VALUE1, ...) \
     do \
     { \
-        ImGui::Text(TITLE); \
         RADIO_BUTTONS_2(TITLE, NAME0, VARIABLE0, VALUE0, NAME1, VARIABLE1, VALUE1); \
         ImGui::SameLine(); \
         RADIO_BUTTON(__VA_ARGS__); \
@@ -101,7 +100,7 @@ void PokemonRed::drawUi()
             "set", options.battleStyle, 1,
             "shift", options.battleStyle, 0);
 
-        RADIO_BUTTONS_3("Battle style",
+        RADIO_BUTTONS_3("Text speed",
             "fast", options.textSpeed, 1,
             "medium", options.textSpeed, 3,
             "slow", options.textSpeed, 5);

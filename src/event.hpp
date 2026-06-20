@@ -59,6 +59,11 @@ struct Event final
         return data.name;
     }
 
+    constexpr bool isActive() const
+    {
+        return prev != next;
+    }
+
 private:
     friend EventSystem;
 

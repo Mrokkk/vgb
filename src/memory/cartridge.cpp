@@ -4,6 +4,7 @@
 
 #include "game_boy.hpp"
 #include "memory/memory_map.hpp"
+#include "serializator.hpp"
 
 namespace memory
 {
@@ -18,6 +19,7 @@ Cartridge::Cartridge()
     : mRamEnabled(false)
     , mRamDirty(false)
     , mAllocatedRam(false)
+    , mDataRegistered(false)
     , mMBC(MBC::NoMBC)
     , mRom(nullptr)
     , mRam(nullptr)
@@ -27,6 +29,7 @@ Cartridge::Cartridge()
     , mBanks(0)
     , mBank(0)
 {
+
 }
 
 Cartridge::~Cartridge()
@@ -54,6 +57,10 @@ static void copyTitle(const char* from, char* to)
 
 void Cartridge::initialize(void* rom, void* ram)
 {
+    if (mRam)
+    {
+        Serializator::removeData(mRam);
+    }
     mRom     = static_cast<uint8_t*>(rom);
     mRomSize = romSize();
     mRamSize = ramSize();
@@ -71,6 +78,18 @@ void Cartridge::initialize(void* rom, void* ram)
     mMBC     = MBC();
     mBanks   = (mRomSize + 1) / MEMORY_BANK_SIZE;
     copyTitle(mHeader->title, mTitle);
+
+    if (not mDataRegistered)
+    {
+        Serializator::registerData(mRamEnabled);
+        Serializator::registerData(mBank);
+        Serializator::registerData(mRamBank);
+        if (mRam)
+        {
+            Serializator::registerData(mRam, mRamSize);
+        }
+        mDataRegistered = true;
+    }
 }
 
 void Cartridge::reset()

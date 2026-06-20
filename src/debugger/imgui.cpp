@@ -18,9 +18,9 @@
 #include "game_boy.hpp"
 #include "logger.hpp"
 #include "logger_reader.hpp"
-#include "main.hpp"
 #include "memory/memory_map.hpp"
 #include "ppu.hpp"
+#include "save_manager.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
 #include "utils/units.hpp"
@@ -412,7 +412,7 @@ void initImGui(State& state)
     state.gui.ioWindow          = true;
     state.gui.gameWindow        = true;
     state.gui.focusCmdLine      = false;
-    state.gui.logWindow         = false;
+    state.gui.logWindow         = true;
     state.gui.lineBuffer[0]     = '\0';
     state.gui.addrBuffer[0]     = '\0';
     state.gui.ioFilterBuffer[0] = '\0';
@@ -745,6 +745,12 @@ ALWAYS_INLINE static void drawConsoleWindow(State& state)
     ImGui::PopStyleColor();
 
     state.gui.focusCmdLine = ImGui::IsMouseClicked(ImGuiMouseButton_Left) and ImGui::IsWindowHovered();
+
+    if (ImGui::IsWindowFocused() and ImGui::IsKeyReleased(ImGuiKey_C) and ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
+    {
+        logToConsole(state, "Interrupted");
+        gb.stop();
+    }
 }
 
 ALWAYS_INLINE static void drawMapWindow(State& state)
@@ -910,7 +916,7 @@ ALWAYS_INLINE static void drawLogWindow(State& state)
 
     if (auto window = ImGui::CreateWindow("Log", &state.gui.logWindow)) [[likely]]
     {
-        ImGui::InputTextMultiline("##tmp", buffer.data(), buffer.size() + 1, ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
+        ImGui::InputTextMultiline("##Log", buffer.data(), buffer.size() + 1, ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
     }
 
     ImGui::PopStyleVar();
@@ -919,6 +925,15 @@ ALWAYS_INLINE static void drawLogWindow(State& state)
 
 ALWAYS_INLINE static void drawEmulationWindow(State& state)
 {
+    if (ImGui::IsKeyReleased(ImGuiKey_F5))
+    {
+        SaveManager::quickSave();
+    }
+    else if (ImGui::IsKeyReleased(ImGuiKey_F9))
+    {
+        SaveManager::quickLoad();
+    }
+
     if (not state.gui.emulationWindow)
     {
         return;
@@ -933,8 +948,6 @@ ALWAYS_INLINE static void drawEmulationWindow(State& state)
 
     ImGui::SeparatorText("Emulation");
     {
-        ImGui::SliderInt("Speed", reinterpret_cast<int*>(&gb.speedMultiplier), 1, 20);
-
         if (gb.state == GameBoy::State::Stopped)
         {
             if (ImGui::Button("Start"))
@@ -954,6 +967,8 @@ ALWAYS_INLINE static void drawEmulationWindow(State& state)
         {
             gb.reset();
         }
+
+        ImGui::SliderInt("Speed", reinterpret_cast<int*>(&gb.speedMultiplier), 1, 20);
     }
 
     ImGui::SeparatorText("Save RAM");
@@ -964,14 +979,35 @@ ALWAYS_INLINE static void drawEmulationWindow(State& state)
             ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
         }
-        if (ImGui::ButtonEx("Save"))
+        if (ImGui::Button("Save"))
         {
-            gb.saveState();
+            gb.saveRam();
         }
         if (not dirty)
         {
             ImGui::PopItemFlag();
             ImGui::PopStyleVar();
+        }
+    }
+
+    ImGui::SeparatorText("Saves");
+    {
+        ImGui::Text("Saves directory: %s", SaveManager::getSaveDir().c_str());
+        if (ImGui::Button("Quick save (F5)"))
+        {
+            SaveManager::quickSave();
+        }
+        if (ImGui::Button("Quick load (F9)"))
+        {
+            SaveManager::quickLoad();
+        }
+        ImGui::SeparatorText("Saves");
+        {
+            unsigned i = 0;
+            for (const auto& save : SaveManager::getSaves())
+            {
+                ImGui::Text("%u: %s", i, save.name.c_str());
+            }
         }
     }
 }
@@ -1003,12 +1039,7 @@ void frame(unsigned int gameTextureId, int fps)
         ImGui::ShowDemoWindow(&state.gui.demoWindow);
     }
 
-    if (ImGui::IsKeyReleased(ImGuiKey_C) and ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
-    {
-        logToConsole(state, "Interrupted");
-        gb.stop();
-    }
-    else if (ImGui::IsKeyReleased(ImGuiKey_GraveAccent))
+    if (ImGui::IsKeyReleased(ImGuiKey_GraveAccent))
     {
         if (state.gui.consoleWindow ^= true)
         {

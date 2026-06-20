@@ -13,12 +13,18 @@ namespace raylib
 
 struct RaylibInput final : Input
 {
+    RaylibInput();
     void update() override;
     void subscribeForGameBoyInput(GameBoyInputCallback callback) override;
 
     GameBoyInput gbInput;
     GameBoyInputCallback gbInputCallback;
 };
+
+RaylibInput::RaylibInput()
+{
+    SetExitKey(KEY_NULL);
+}
 
 bool operator==(GameBoyInput lhs, GameBoyInput rhs)
 {

@@ -9,10 +9,13 @@
 #include "apu.hpp"
 #include "component.hpp"
 #include "config.hpp"
+#include "cpu/sm83.hpp"
 #include "joypad.hpp"
 #include "logger.hpp"
 #include "ppu.hpp"
 #include "renderer.hpp"
+#include "save_manager.hpp"
+#include "serializator.hpp"
 #include "sys/system.hpp"
 #include "timer.hpp"
 #include "utils/unique_ptr.hpp"
@@ -35,11 +38,12 @@ struct DummyComponent final : Component
 
 GameBoy::GameBoy()
     : state(State::Stopped)
-    , resetScheduled(false)
     , speedMultiplier(1)
     , frameNumber(0)
     , inputEnabled(true)
 {
+    Serializator::registerData(frameNumber);
+
     for (auto& component : components)
     {
         component = utils::makeUnique<DummyComponent>();
@@ -51,6 +55,7 @@ GameBoy::~GameBoy() = default;
 void GameBoy::load(void* rom, void* ram, const Config& config)
 {
     cartridge.initialize(rom, ram);
+    SaveManager::init(config);
 
     this->config = config;
 
@@ -89,8 +94,7 @@ void GameBoy::reset()
 {
     if (state == State::Running)
     {
-        stop();
-        resetScheduled = true;
+        withStoppedState([this]{ reset(); });
         return;
     }
     events.reset();
@@ -130,10 +134,10 @@ void GameBoy::frame()
     // Renderer should be locked to 60 FPS which is used to synchronize
     // GameBoy emulation. Skipping frames increases the emulation speed
 
-    if (resetScheduled) [[unlikely]]
+    if (scheduledCallback) [[unlikely]]
     {
-        resetScheduled = false;
-        reset();
+        scheduledCallback();
+        scheduledCallback = nullptr;
         start();
     }
 
@@ -147,7 +151,7 @@ void GameBoy::frame()
     }
 }
 
-void GameBoy::saveState()
+void GameBoy::saveRam()
 {
     if (cartridge.getRam() and cartridge.isRamDirty())
     {
@@ -168,4 +172,16 @@ void GameBoy::saveState()
 void GameBoy::registerComponent(Component::Type type, utils::UniquePtr<Component> component)
 {
     components[static_cast<int>(type)] = std::move(component);
+}
+
+void GameBoy::withStoppedState(std::move_only_function<void()> callback)
+{
+    if (state == State::Stopped)
+    {
+        callback();
+        return;
+    }
+
+    scheduledCallback = std::move(callback);
+    stop();
 }

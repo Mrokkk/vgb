@@ -89,6 +89,7 @@ target_compile_options(rlimgui PRIVATE -Wno-error)
 include(FindPkgConfig)
 pkg_check_modules(BACKTRACE REQUIRED libbacktrace)
 pkg_check_modules(READLINE REQUIRED readline)
+pkg_check_modules(ZLIB REQUIRED zlib)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pipe -std=c++2c -ggdb3 -Wall -Wextra -Werror -Wno-missing-field-initializers")
 
@@ -138,6 +139,8 @@ add_library(emulator OBJECT
     src/raylib/input.cpp
     src/raylib/renderer.cpp
     src/renderer.cpp
+    src/save_manager.cpp
+    src/serializator.cpp
     src/sys/posix.cpp
     src/timer.cpp
     src/utils/buffer.cpp
@@ -173,7 +176,8 @@ add_library(debugger OBJECT
 )
 
 target_include_directories(debugger PUBLIC ${imgui_club_SOURCE_DIR})
-target_link_libraries(emulator PUBLIC ${COMMON_LIBRARIES} imgui rlimgui)
+target_include_directories(emulator PUBLIC ${ZLIB_INCLUDE_DIRS})
+target_link_libraries(emulator PUBLIC ${COMMON_LIBRARIES} imgui rlimgui ${ZLIB_LIBRARIES})
 target_link_libraries(debugger PUBLIC fmt::fmt imgui)
 
 add_executable(${PROJECT_NAME} src/main.cpp)

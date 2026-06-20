@@ -2,12 +2,12 @@
 
 #include <cstdint>
 #include <fmt/base.h>
-#include <raylib.h>
 
 #include "component.hpp"
 #include "cpu/sm83.hpp"
 #include "game_boy.hpp"
 #include "input.hpp"
+#include "serializator.hpp"
 #include "utils/unique_ptr.hpp"
 
 struct Joypad : Component
@@ -82,7 +82,9 @@ Joypad::Joypad()
             update(input);
         });
 
-    SetExitKey(KEY_NULL);
+    Serializator::registerData(buttons);
+    Serializator::registerData(directional);
+    Serializator::registerData(joyp);
 }
 
 void Joypad::reset()

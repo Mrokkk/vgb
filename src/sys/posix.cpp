@@ -442,7 +442,47 @@ MaybeString readLineFromStdin(const std::string_view& prompt)
 bool doesFileExist(const char* pathname)
 {
     struct stat buf;
-    return stat(pathname, &buf) == 0;
+    return stat(pathname, &buf) == 0 and S_ISREG(buf.st_mode);
+}
+
+bool doesDirExist(const char* pathname)
+{
+    struct stat buf;
+    return stat(pathname, &buf) == 0 and S_ISDIR(buf.st_mode);
+}
+
+MappedFile::MappedFile(bool readonly, void* ptr, size_t size)
+    : mReadonly(readonly)
+    , mPtr(ptr)
+    , mSize(size)
+{
+}
+
+MappedFile::~MappedFile()
+{
+    if (mPtr)
+    {
+        munmap(mPtr, mSize);
+    }
+}
+
+MappedFile::MappedFile(MappedFile&& other)
+    : mReadonly(other.mReadonly)
+    , mPtr(other.mPtr)
+    , mSize(other.mSize)
+{
+    other.mPtr = nullptr;
+    other.mSize = 0;
+}
+
+MappedFile& MappedFile::operator=(MappedFile&& other)
+{
+    mReadonly = other.mReadonly;
+    mPtr = other.mPtr;
+    mSize = other.mSize;
+    other.mPtr = nullptr;
+    other.mSize = 0;
+    return *this;
 }
 
 MaybeMappedFile mapFile(const char* pathname, bool readOnly)
@@ -471,8 +511,9 @@ MaybeMappedFile mapFile(const char* pathname, bool readOnly)
     close(fd);
 
     return MappedFile{
-        .ptr = mapped,
-        .size = static_cast<size_t>(stat.st_size)
+        readOnly,
+        mapped,
+        static_cast<size_t>(stat.st_size)
     };
 }
 

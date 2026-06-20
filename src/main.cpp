@@ -1,6 +1,7 @@
 #include <cstdlib>
 
 #include <argh.h>
+#include <filesystem>
 #include <fmt/base.h>
 
 #include "debugger/main.hpp"
@@ -12,10 +13,9 @@ GameBoy gb;
 
 static std::string createRamFilePath(const std::string& romFilePath)
 {
-    auto dot = romFilePath.find_last_of('.', romFilePath.size());
-    std::string ramFilePath(romFilePath.begin(), romFilePath.begin() + dot);
-    ramFilePath += ".vgb";
-    return ramFilePath;
+    auto path = std::filesystem::path(romFilePath);
+    path.replace_extension(".vgb");
+    return path.string();
 }
 
 int main(int argc, char* argv[])
@@ -59,14 +59,10 @@ int main(int argc, char* argv[])
             return EXIT_FAILURE;
         }
 
-        mappedRam = *result;
-    }
-    else
-    {
-        mappedRam.ptr = nullptr;
+        mappedRam = std::move(*result);
     }
 
-    gb.load(mappedRom->ptr, mappedRam.ptr, config);
+    gb.load(mappedRom->getData(), mappedRam.getData(), config);
 
     if (config.useDebugger)
     {
@@ -77,7 +73,7 @@ int main(int argc, char* argv[])
         gb.run();
     }
 
-    gb.saveState();
+    gb.saveRam();
 
     return 0;
 }

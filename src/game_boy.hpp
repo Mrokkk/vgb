@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 #include "component.hpp"
 #include "config.hpp"
@@ -34,17 +35,20 @@ struct GameBoy final : utils::Immobile
     void skipBootRom();
     void frame();
 
-    void saveState();
+    using Callback = std::move_only_function<void()>;
+
+    void saveRam();
 
     void registerComponent(Component::Type type, utils::UniquePtr<Component> component);
+    void withStoppedState(Callback callback);
 
     State             state;
-    bool              resetScheduled;
     unsigned          speedMultiplier;
     size_t            frameNumber;
     cpu::SM83         cpu;
     memory::Cartridge cartridge;
     EventSystem       events;
+    Callback          scheduledCallback;
 
     ComponentPtr components[Component::Type::Last + 1];
     RendererPtr renderer;

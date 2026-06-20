@@ -5,6 +5,7 @@
 #include "component.hpp"
 #include "event.hpp"
 #include "game_boy.hpp"
+#include "serializator.hpp"
 #include "utils/unique_ptr.hpp"
 
 struct Timer final : Component
@@ -72,6 +73,8 @@ Timer::Timer()
     }))
 {
     reset();
+    Serializator::registerData(values);
+    Serializator::registerEvents({&divEvent, &timaEvent});
 }
 
 void Timer::reset()

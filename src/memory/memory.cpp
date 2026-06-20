@@ -7,6 +7,7 @@
 #include "cpu/sm83.hpp"
 #include "game_boy.hpp"
 #include "memory/memory_map.hpp"
+#include "serializator.hpp"
 #include "utils/byte_order.hpp"
 
 namespace memory
@@ -21,6 +22,14 @@ uint8_t dmgBootRom[0x100] = {
 Memory::Memory()
     : mBootRomEnabled(true)
 {
+    vram.bank = 0;
+    bankedWorkRam.bank = 0;
+    Serializator::registerData(vram);
+    Serializator::registerData(baseWorkRam);
+    Serializator::registerData(bankedWorkRam);
+    Serializator::registerData(oam);
+    Serializator::registerData(highRam);
+    Serializator::registerData(mBootRomEnabled);
 }
 
 Memory::~Memory() = default;
@@ -28,8 +37,10 @@ Memory::~Memory() = default;
 void Memory::reset()
 {
     mBootRomEnabled = true;
+    vram.bank = 0;
     memset(vram.data, 0, sizeof(vram.data));
     memset(baseWorkRam.data, 0, sizeof(baseWorkRam.data));
+    bankedWorkRam.bank = 0;
     memset(bankedWorkRam.data, 0, sizeof(bankedWorkRam.data));
     memset(oam.data, 0, sizeof(oam.data));
     memset(highRam.data, 0, sizeof(highRam.data));

@@ -24,16 +24,15 @@ static LoggerState state;
 static thread_local std::string buffer;
 static LoggerReader::OnLogCallback onLogCallback;
 
-Logger::Flusher Logger::log(Severity severity, LogEntryFlags flags, const char* header, utils::SourceLocation loc)
+Logger::Flusher Logger::log(Severity severity, const char* header, utils::SourceLocation loc)
 {
-    return Flusher(severity, flags, header, loc, buffer);
+    return Flusher(severity, header, loc, buffer);
 }
 
-void Logger::registerLogEntry(Severity severity, LogEntryFlags flags, const char* header, utils::SourceLocation loc)
+void Logger::registerLogEntry(Severity severity, const char* header, utils::SourceLocation loc)
 {
     LogEntry entry{
         .severity = severity,
-        .flags = flags,
         .time = std::time(nullptr),
         .location = loc,
         .header = header,
@@ -52,12 +51,10 @@ void Logger::registerLogEntry(Severity severity, LogEntryFlags flags, const char
 
 Logger::Flusher::Flusher(
     Severity severity,
-    LogEntryFlags flags,
     const char* header,
     utils::SourceLocation loc,
     std::string& buffer)
     : mSeverity(severity)
-    , mFlags(flags)
     , mHeader(header)
     , mLocation(loc)
     , mBuffer(buffer)
