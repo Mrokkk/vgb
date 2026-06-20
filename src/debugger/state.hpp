@@ -45,8 +45,6 @@ struct GUI
 struct State
 {
     cpu::SM83&  cpu;
-    bool        stopped;
-    bool        printRegs;
     int         prevBreakpoint;
     std::string prompt;
     std::string prevLine;

@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
         mappedRam.ptr = nullptr;
     }
 
-    gb.start(mappedRom->ptr, mappedRam.ptr, config);
+    gb.load(mappedRom->ptr, mappedRam.ptr, config);
 
     if (config.useDebugger)
     {

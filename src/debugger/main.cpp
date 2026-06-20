@@ -119,10 +119,8 @@ static void runCpu(State& state)
 {
     while (1)
     {
-        if (state.cpu.stopped)
+        if (gb.state == GameBoy::State::Stopped)
         {
-            state.stopped = true;
-            state.cpu.stopped = false;
             break;
         }
         if ((int)state.cpu.pc != state.prevBreakpoint)
@@ -133,7 +131,7 @@ static void runCpu(State& state)
             {
                 logToConsole(state, "Hit breakpoint {} at {:#04x}", breakpoint->second.id, breakpoint->second.address);
                 state.prevBreakpoint = state.cpu.pc;
-                state.stopped = true;
+                gb.stop();
                 break;
             }
             else
@@ -144,7 +142,7 @@ static void runCpu(State& state)
 
         if (state.cpu.step())
         {
-            state.stopped = true;
+            gb.stop();
             break;
         }
     }
@@ -159,8 +157,6 @@ void main(GameBoy& gb)
 {
     State state{
         .cpu = gb.cpu,
-        .stopped = true,
-        .printRegs = false,
         .prevBreakpoint = -1,
         .prompt = "(vgb)",
     };
@@ -180,7 +176,7 @@ void main(GameBoy& gb)
             break;
         }
 
-        while (state.stopped)
+        while (gb.state == GameBoy::State::Stopped)
         {
             gb.frame();
 

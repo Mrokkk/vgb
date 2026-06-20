@@ -467,7 +467,21 @@ ALWAYS_INLINE static void drawMenuBar(State& state)
     }
     if (auto menu = ImGui::CreateMenu("Emulation"))
     {
-        BOOL_MENU_ITEM("Pause", nullptr, gb.cpu.stopped);
+        if (gb.state == GameBoy::State::Stopped)
+        {
+            if (ImGui::MenuItem("Start"))
+            {
+                gb.start();
+            }
+        }
+        else
+        {
+            if (ImGui::MenuItem("Stop"))
+            {
+                gb.stop();
+            }
+        }
+
         if (auto menu = ImGui::CreateMenu("Speed"))
         {
             SPEED_MENU_ITEM(1);
@@ -550,24 +564,24 @@ ALWAYS_INLINE static void drawCpuWindow(State& state)
         return;
     }
 
-    ImGui::Text("State: %s", gb.cpu.halt ? "halted" : gb.cpu.stopped ? "stopped" : "running");
+    ImGui::Text("State: %s", gb.cpu.state == cpu::SM83::State::Halted ? "halted" : "running");
 
     ImGui::SeparatorText("Registers");
     {
-        ImGui::Text("AF: %04x; {c: %u, h: %u; n: %u, z: %u}",
+        ImGui::Text("AF:  %04x; {c: %u, h: %u; n: %u, z: %u}",
             gb.cpu.af.get(),
             gb.cpu.f.c,
             gb.cpu.f.h,
             gb.cpu.f.n,
             gb.cpu.f.z);
-        ImGui::Text("BC: %04x", gb.cpu.bc.get());
-        ImGui::Text("DE: %04x", gb.cpu.de.get());
-        ImGui::Text("HL: %04x", gb.cpu.hl.get());
-        ImGui::Text("SP: %04x", gb.cpu.sp.get());
-        ImGui::Text("PC: %04x", gb.cpu.pc.get());
+        ImGui::Text("BC:  %04x", gb.cpu.bc.get());
+        ImGui::Text("DE:  %04x", gb.cpu.de.get());
+        ImGui::Text("HL:  %04x", gb.cpu.hl.get());
+        ImGui::Text("SP:  %04x", gb.cpu.sp.get());
+        ImGui::Text("PC:  %04x", gb.cpu.pc.get());
         ImGui::Text("IME: %01x", gb.cpu.ime.get());
-        ImGui::Text("IE: %01x", gb.cpu.ie.get());
-        ImGui::Text("IF: %01x", gb.cpu.$if.get());
+        ImGui::Text("IE:  %02x", gb.cpu.ie.get());
+        ImGui::Text("IF:  %02x", gb.cpu.$if.get());
     }
 
 #define PRINT_IRQ(INT) \
@@ -921,12 +935,11 @@ ALWAYS_INLINE static void drawEmulationWindow(State& state)
     {
         ImGui::SliderInt("Speed", reinterpret_cast<int*>(&gb.speedMultiplier), 1, 20);
 
-        if (state.stopped)
+        if (gb.state == GameBoy::State::Stopped)
         {
             if (ImGui::Button("Start"))
             {
-                state.stopped = false;
-                gb.cpu.stopped = false;
+                gb.start();
             }
         }
         else

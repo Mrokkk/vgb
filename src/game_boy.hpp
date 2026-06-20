@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "component.hpp"
 #include "config.hpp"
 #include "cpu/sm83.hpp"
@@ -13,12 +15,21 @@
 
 struct GameBoy final : utils::Immobile
 {
+    enum class State : uint8_t
+    {
+        Stopped,
+        Running,
+    };
+
     GameBoy();
     ~GameBoy();
 
-    void start(void* cartridge, void* ram, const Config& config);
+    void load(void* cartridge, void* ram, const Config& config);
+
     void run();
-    bool stop();
+
+    void start();
+    void stop();
     void reset();
     void skipBootRom();
     void frame();
@@ -27,6 +38,8 @@ struct GameBoy final : utils::Immobile
 
     void registerComponent(Component::Type type, utils::UniquePtr<Component> component);
 
+    State             state;
+    bool              resetScheduled;
     unsigned          speedMultiplier;
     size_t            frameNumber;
     cpu::SM83         cpu;

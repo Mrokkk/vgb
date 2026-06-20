@@ -34,7 +34,9 @@ struct DummyComponent final : Component
 };
 
 GameBoy::GameBoy()
-    : speedMultiplier(1)
+    : state(State::Stopped)
+    , resetScheduled(false)
+    , speedMultiplier(1)
     , frameNumber(0)
     , inputEnabled(true)
 {
@@ -46,7 +48,7 @@ GameBoy::GameBoy()
 
 GameBoy::~GameBoy() = default;
 
-void GameBoy::start(void* rom, void* ram, const Config& config)
+void GameBoy::load(void* rom, void* ram, const Config& config)
 {
     cartridge.initialize(rom, ram);
 
@@ -68,21 +70,29 @@ void GameBoy::start(void* rom, void* ram, const Config& config)
 
 void GameBoy::run()
 {
-    while (cpu.step() == 0 and not cpu.stopped);
+    state = State::Running;
+    while (cpu.step() == 0 and state == State::Running);
 }
 
-bool GameBoy::stop()
+void GameBoy::start()
 {
-    if (cpu.stopped)
-    {
-        return false;
-    }
+    state = State::Running;
+}
+
+void GameBoy::stop()
+{
+    state = State::Stopped;
     cpu.stop();
-    return true;
 }
 
 void GameBoy::reset()
 {
+    if (state == State::Running)
+    {
+        stop();
+        resetScheduled = true;
+        return;
+    }
     events.reset();
     cpu.reset();
     cartridge.reset();
@@ -119,6 +129,13 @@ void GameBoy::frame()
 {
     // Renderer should be locked to 60 FPS which is used to synchronize
     // GameBoy emulation. Skipping frames increases the emulation speed
+
+    if (resetScheduled) [[unlikely]]
+    {
+        resetScheduled = false;
+        reset();
+        start();
+    }
 
     static uint64_t counter = 0;
     if ((counter++ % speedMultiplier) == 0)

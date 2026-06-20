@@ -58,7 +58,7 @@ int SM83::step()
         HANDLE_IRQ(IRQ::Joypad);
     }
 
-    if (halt)
+    if (state == State::Halted)
     {
         cycles = gb.events.performNextEvent();
         return 0;
@@ -100,7 +100,6 @@ irqHandled:
 
 void SM83::stop()
 {
-    stopped = true;
 }
 
 void SM83::scheduleEi()
@@ -141,8 +140,7 @@ void SM83::clear()
 {
     memset(&regs, 0, sizeof(regs));
 
-    stopped      = false;
-    halt         = false;
+    state        = State::Running;
     cycles       = 0;
     instructions = 0;
     exc          = Exception::None;
@@ -159,10 +157,10 @@ void SM83::handleIrq(IRQ irq)
     clearIrq(irq);
     ime = 0;
     sp -= 2;
-    mem.store16(sp, pc - halt);
+    mem.store16(sp, pc);
     pc = 0x40 + 0x08 * uint8_t(irq);
     cycles += IRQ_CYCLES;
-    halt = false;
+    state = State::Running;
 }
 
 }  // namespace cpu

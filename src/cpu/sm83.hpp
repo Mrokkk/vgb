@@ -83,6 +83,12 @@ ALWAYS_INLINE static bool checkIrq(IRQ irq, uint8_t reg)
 
 struct SM83 final : utils::Immobile
 {
+    enum class State : uint8_t
+    {
+        Running,
+        Halted,
+    };
+
     SM83();
     ~SM83();
 
@@ -94,7 +100,7 @@ struct SM83 final : utils::Immobile
     ALWAYS_INLINE void raiseIrq(IRQ irq)
     {
         $if |= 1 << uint8_t(irq);
-        halt = false;
+        state = State::Running;
     }
 
     ALWAYS_INLINE void clearIrq(IRQ irq)
@@ -119,8 +125,7 @@ public:
     Regs                 lastRegs;
     isa::InstructionData cache;
     Exception            exc;
-    bool                 halt;
-    bool                 stopped;
+    State                state;
     size_t               cycles;
     size_t               instructions;
     memory::Memory       mem;
