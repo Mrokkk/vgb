@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "utils/immobile.hpp"
+#include "utils/inline.hpp"
 #include "utils/units.hpp"
 
 namespace memory
@@ -83,12 +84,12 @@ struct Cartridge final : utils::Immobile
     uint8_t loadRam(uint16_t addr) const;
     void storeRam(uint16_t addr, uint8_t value);
 
-    uint32_t romSize() const
+    ALWAYS_INLINE uint32_t romSize() const
     {
         return 32 * KiB * (1 << mHeader->romSize);
     }
 
-    uint32_t ramSize() const
+    ALWAYS_INLINE uint32_t ramSize() const
     {
         switch (mHeader->ramSize)
         {
@@ -100,14 +101,24 @@ struct Cartridge final : utils::Immobile
         return 0;
     }
 
-    uint8_t* getRom()
+    ALWAYS_INLINE uint8_t* getRom()
     {
         return mRom;
     }
 
-    void* getRam() const
+    ALWAYS_INLINE void* getRam() const
     {
         return mRam;
+    }
+
+    ALWAYS_INLINE bool isRamDirty() const
+    {
+        return mRamDirty;
+    }
+
+    ALWAYS_INLINE void setRamNotDirty()
+    {
+        mRamDirty = false;
     }
 
     const char* getTitle() const;
@@ -117,6 +128,7 @@ struct Cartridge final : utils::Immobile
 
 private:
     bool     mRamEnabled:1;
+    bool     mRamDirty:1;
     bool     mAllocatedRam:1;
     enum MBC mMBC:4;
     char     mTitle[17];

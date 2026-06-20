@@ -164,7 +164,7 @@ TEST_CASE_FIXTURE(Fixture, "instruction_tests")
     {
         SUBCASE(data[i].name)
         {
-            gb.cartridge.initialize(data[i].rom, nullptr);
+            gb.cartridge.initialize(const_cast<uint8_t*>(data[i].rom), nullptr);
             gb.run();
             CHECK_EQ(gb.cpu.exc.type, cpu::Exception::InfiniteLoop);
             auto str = readTestOutput();

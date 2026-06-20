@@ -16,6 +16,7 @@ enum
 
 Cartridge::Cartridge()
     : mRamEnabled(false)
+    , mRamDirty(false)
     , mAllocatedRam(false)
     , mMBC(MBC::NoMBC)
     , mRom(nullptr)
@@ -173,6 +174,7 @@ void Cartridge::storeRam(uint16_t addr, uint8_t value)
         return;
     }
     mRam[mRamBank * RAM_BANK_SIZE + addr] = value;
+    mRamDirty = true;
 }
 
 const char* Cartridge::getTitle() const

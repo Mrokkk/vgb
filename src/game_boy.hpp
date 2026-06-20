@@ -23,6 +23,8 @@ struct GameBoy final : utils::Immobile
     void skipBootRom();
     void frame();
 
+    void saveState();
+
     void registerComponent(Component::Type type, utils::UniquePtr<Component> component);
 
     unsigned          speedMultiplier;

@@ -1,12 +1,16 @@
+#define LOG_HEADER "GameBoy"
 #include "game_boy.hpp"
 
 #include <cstdint>
 #include <utility>
 
+#include <fmt/base.h>
+
 #include "apu.hpp"
 #include "component.hpp"
 #include "config.hpp"
 #include "joypad.hpp"
+#include "logger.hpp"
 #include "ppu.hpp"
 #include "renderer.hpp"
 #include "sys/system.hpp"
@@ -123,6 +127,24 @@ void GameBoy::frame()
         sys::pingSupervision();
         gb.input->update();
         gb.renderer->render();
+    }
+}
+
+void GameBoy::saveState()
+{
+    if (cartridge.getRam() and cartridge.isRamDirty())
+    {
+        auto res = sys::saveToFile(config.cartridgeRamPath.c_str(), cartridge.getRam(), cartridge.ramSize());
+
+        if (not res)
+        {
+            fmt::println(stderr, "{}: cannot save file: {}", config.cartridgeRamPath, res.error());
+            exit(EXIT_FAILURE);
+        }
+
+        cartridge.setRamNotDirty();
+
+        logger.info().write("saved RAM to {}", config.cartridgeRamPath);
     }
 }
 

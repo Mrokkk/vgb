@@ -18,20 +18,6 @@ static std::string createRamFilePath(const std::string& romFilePath)
     return ramFilePath;
 }
 
-static void saveState(const Config& config)
-{
-    if (gb.cartridge.getRam())
-    {
-        auto res = sys::saveToFile(config.cartridgeRamPath.c_str(), gb.cartridge.getRam(), gb.cartridge.ramSize());
-
-        if (not res)
-        {
-            fmt::println(stderr, "{}: cannot save file: {}", config.cartridgeRamPath, res.error());
-            exit(EXIT_FAILURE);
-        }
-    }
-}
-
 int main(int argc, char* argv[])
 {
     const argh::parser cmdl(argc, argv);
@@ -91,7 +77,7 @@ int main(int argc, char* argv[])
         gb.run();
     }
 
-    saveState(config);
+    gb.saveState();
 
     return 0;
 }

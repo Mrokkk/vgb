@@ -24,6 +24,7 @@ struct Breakpoint
 struct GUI
 {
     bool        commandEntered;
+    bool        emulationWindow;
     bool        cartridgeWindow;
     bool        cpuWindow;
     bool        consoleWindow;

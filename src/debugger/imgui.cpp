@@ -9,6 +9,7 @@
 #include <fmt/fmt_ext.h>
 #include <imgui.h>
 #include <imgui_ext.h>
+#include <imgui_internal.h>
 #include <imgui_memory_editor/imgui_memory_editor.h>
 
 #include "cpu/sm83.hpp"
@@ -394,13 +395,14 @@ void initImGui(State& state)
     auto& io = ImGui::GetIO();
     auto& style = ImGui::GetStyle();
 
-    style.FontSizeBase = 16;
-    style.WindowBorderSize = 0;
-    style.FrameRounding = 5.0f;
+    style.FontSizeBase      = 16;
+    style.WindowBorderSize  = 0;
+    style.FrameRounding     = 5.0f;
     style.ScrollbarRounding = 5.0f;
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
+    state.gui.emulationWindow   = true;
     state.gui.cartridgeWindow   = true;
     state.gui.cpuWindow         = true;
     state.gui.consoleWindow     = true;
@@ -411,18 +413,17 @@ void initImGui(State& state)
     state.gui.gameWindow        = true;
     state.gui.focusCmdLine      = false;
     state.gui.logWindow         = false;
-
-    state.gui.lineBuffer[0] = '\0';
-    state.gui.addrBuffer[0] = '\0';
+    state.gui.lineBuffer[0]     = '\0';
+    state.gui.addrBuffer[0]     = '\0';
     state.gui.ioFilterBuffer[0] = '\0';
 
     memEditor = utils::makeUnique<MemoryEditor>();
-    memEditor->ReadFn = &readMemory;
-    memEditor->WriteFn = &writeMemory;
-    memEditor->Cols = 8;
-    memEditor->OptShowOptions = false;
+    memEditor->ReadFn          = &readMemory;
+    memEditor->WriteFn         = &writeMemory;
+    memEditor->Cols            = 8;
+    memEditor->OptShowOptions  = false;
     memEditor->OptUpperCaseHex = false;
-    memEditor->Open = true;
+    memEditor->Open            = true;
 
     loggerReader.forEachLogEntry(
         [](const LogEntry& e)
@@ -479,6 +480,7 @@ ALWAYS_INLINE static void drawMenuBar(State& state)
 
     if (auto menu = ImGui::CreateMenu("View"))
     {
+        BOOL_MENU_ITEM("Emulation", nullptr, state.gui.emulationWindow);
         BOOL_MENU_ITEM("Cartridge", nullptr, state.gui.cartridgeWindow);
         BOOL_MENU_ITEM("CPU", nullptr, state.gui.cpuWindow);
         BOOL_MENU_ITEM("Memory", nullptr, memEditor->Open);
@@ -779,21 +781,24 @@ ALWAYS_INLINE static void drawIoWindow(State& state)
         return;
     }
 
-    if (ImGui::InputText("Filter", state.gui.ioFilterBuffer, sizeof(state.gui.ioFilterBuffer), ImGuiInputTextFlags_EnterReturnsTrue))
-    {
-        state.gui.ioFilterBuffer[0] = 0;
-    }
+    ImGui::InputText("Filter", state.gui.ioFilterBuffer, sizeof(state.gui.ioFilterBuffer));
 
     constexpr auto tableFlags
-        = ImGuiTableFlags_BordersV
-        | ImGuiTableFlags_BordersOuterH
+        = ImGuiTableFlags_Borders
         | ImGuiTableFlags_Resizable
         | ImGuiTableFlags_RowBg
+        | ImGuiTableFlags_ScrollY
         | ImGuiTableFlags_NoBordersInBody;
 
-    constexpr auto treeFlags
+    constexpr auto parentFlags
         = ImGuiTreeNodeFlags_SpanAllColumns
         | ImGuiTreeNodeFlags_DrawLinesFull;
+
+    constexpr auto leafFlags
+        = parentFlags
+        | ImGuiTreeNodeFlags_Leaf
+        | ImGuiTreeNodeFlags_Bullet
+        | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
     if (auto table = ImGui::CreateTable("IOTable", 3, tableFlags))
     {
@@ -818,7 +823,7 @@ ALWAYS_INLINE static void drawIoWindow(State& state)
 
             if (entry.bitEntries[0].name)
             {
-                bool open = ImGui::TreeNodeEx(entry.name, treeFlags);
+                bool open = ImGui::TreeNodeEx(entry.name, parentFlags);
                 ImGui::TableNextColumn();
                 ImGui::Text("%x", 0xff00 + entry.addr);
                 ImGui::TableNextColumn();
@@ -835,7 +840,7 @@ ALWAYS_INLINE static void drawIoWindow(State& state)
 
                         ImGui::TableNextRow();
                         ImGui::TableNextColumn();
-                        ImGui::TreeNodeEx(bit.name, treeFlags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+                        ImGui::TreeNodeEx(bit.name, leafFlags);
                         ImGui::TableNextColumn();
                         ImGui::Text("%u", bit.shift);
                         ImGui::TableNextColumn();
@@ -846,7 +851,7 @@ ALWAYS_INLINE static void drawIoWindow(State& state)
             }
             else
             {
-                ImGui::TreeNodeEx(entry.name, treeFlags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+                ImGui::TreeNodeEx(entry.name, leafFlags);
                 ImGui::TableNextColumn();
                 ImGui::Text("%x", 0xff00 + entry.addr);
                 ImGui::TableNextColumn();
@@ -894,8 +899,68 @@ ALWAYS_INLINE static void drawLogWindow(State& state)
         ImGui::InputTextMultiline("##tmp", buffer.data(), buffer.size() + 1, ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
     }
 
-    ImGui::PopStyleVar(1);
-    ImGui::PopStyleColor(1);
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
+}
+
+ALWAYS_INLINE static void drawEmulationWindow(State& state)
+{
+    if (not state.gui.emulationWindow)
+    {
+        return;
+    }
+
+    auto window = ImGui::CreateWindow("Emulation", &state.gui.emulationWindow);
+
+    if (not window) [[unlikely]]
+    {
+        return;
+    }
+
+    ImGui::SeparatorText("Emulation");
+    {
+        ImGui::SliderInt("Speed", reinterpret_cast<int*>(&gb.speedMultiplier), 1, 20);
+
+        if (state.stopped)
+        {
+            if (ImGui::Button("Start"))
+            {
+                state.stopped = false;
+                gb.cpu.stopped = false;
+            }
+        }
+        else
+        {
+            if (ImGui::Button("Stop"))
+            {
+                gb.stop();
+            }
+        }
+
+        if (ImGui::SameLineButton("Reset"))
+        {
+            gb.reset();
+        }
+    }
+
+    ImGui::SeparatorText("Save RAM");
+    {
+        const bool dirty = gb.cartridge.isRamDirty();
+        if (not dirty)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+        if (ImGui::ButtonEx("Save"))
+        {
+            gb.saveState();
+        }
+        if (not dirty)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+    }
 }
 
 void frame(unsigned int gameTextureId, int fps)
@@ -918,6 +983,7 @@ void frame(unsigned int gameTextureId, int fps)
     drawStyleEditorWindow(state);
     drawGameWindow(state);
     drawLogWindow(state);
+    drawEmulationWindow(state);
 
     if (state.gui.demoWindow)
     {
