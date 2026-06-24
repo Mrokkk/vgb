@@ -260,7 +260,7 @@ case "${COMMAND}" in
             ninja tests-cov-html
         else
             build_target test
-            run_command "${BUILD_DIR}/test" "${ARGS}"
+            run_command "${BUILD_DIR}/test/test" "${ARGS}"
         fi
         ;;
     *)

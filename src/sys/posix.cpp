@@ -1,7 +1,6 @@
 #include "system.hpp"
 
 #include <atomic>
-#include <backtrace.h>
 #include <cerrno>
 #include <csignal>
 #include <cstdint>
@@ -19,10 +18,12 @@
 #include <unistd.h>
 #include <vector>
 
+#ifdef USE_BACKTRACE
+#include <backtrace.h>
+#endif
+
 #include <fmt/base.h>
 #include <fmt/color.h>
-#include <readline/history.h>
-#include <readline/readline.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
@@ -33,7 +34,16 @@
 namespace sys
 {
 
+static std::atomic_int counter;
+static std::thread supervisionThread;
+static std::atomic_bool stop;
+
+#ifdef USE_BACKTRACE
 static backtrace_state* backtraceState;
+using BacktraceCreateStateFn = decltype(&backtrace_create_state);
+using BacktraceFullFn = decltype(&backtrace_full);
+static BacktraceCreateStateFn backtraceCreateState;
+static BacktraceFullFn backtraceFull;
 
 struct ProcessMapping
 {
@@ -70,12 +80,6 @@ static std::string mappingNameFind(const ProcessMappings& mappings, uintptr_t ad
         return "??";
     }
 }
-
-using BacktraceCreateStateFn = decltype(&backtrace_create_state);
-using BacktraceFullFn = decltype(&backtrace_full);
-
-BacktraceCreateStateFn backtraceCreateState;
-BacktraceFullFn backtraceFull;
 
 static int backtraceCallback(void* data, uintptr_t pc, const char* pathname, int lineNumber, const char* function)
 {
@@ -179,63 +183,6 @@ static void stacktraceLogInternal()
     fmt::println("Stacktrace:");
 
     backtraceFull(backtraceState, 1, backtraceCallback, backtraceErrorCallback, static_cast<void*>(&context));
-}
-
-void stacktraceLog(void)
-{
-    stacktraceLogInternal();
-}
-
-static std::atomic_int counter;
-static std::thread supervisionThread;
-static std::atomic_bool stop;
-
-void pingSupervision()
-{
-    counter++;
-}
-
-void stopSupervision()
-{
-    if (stop)
-    {
-        return;
-    }
-    stop = true;
-    if (supervisionThread.joinable())
-    {
-        supervisionThread.join();
-    }
-}
-
-static void supervision()
-{
-    using namespace std::chrono_literals;
-
-    int failed = 0;
-    while (1)
-    {
-        std::this_thread::sleep_for(200ms);
-        if (stop)
-        {
-            break;
-        }
-        if (counter == 0)
-        {
-            if (++failed == 5)
-            {
-                auto pid = getpid();
-                fmt::println("Main thread ({}) is not responding", pid);
-                kill(pid, SIGABRT);
-                break;
-            }
-        }
-        else
-        {
-            counter = 0;
-            failed = 0;
-        }
-    }
 }
 
 static void crashHandle(int sig, siginfo_t* info, void* context)
@@ -360,6 +307,66 @@ static void crashHandle(int sig, siginfo_t* info, void* context)
         abort();
     }
 }
+#else
+
+static void stacktraceLogInternal()
+{
+    fmt::println("application built without libbacktrace; cannot collect stacktrace");
+}
+#endif
+
+void stacktraceLog(void)
+{
+    stacktraceLogInternal();
+}
+
+void pingSupervision()
+{
+    counter++;
+}
+
+void stopSupervision()
+{
+    if (stop)
+    {
+        return;
+    }
+    stop = true;
+    if (supervisionThread.joinable())
+    {
+        supervisionThread.join();
+    }
+}
+
+static void supervision()
+{
+    using namespace std::chrono_literals;
+
+    int failed = 0;
+    while (1)
+    {
+        std::this_thread::sleep_for(200ms);
+        if (stop)
+        {
+            break;
+        }
+        if (counter == 0)
+        {
+            if (++failed == 5)
+            {
+                auto pid = getpid();
+                fmt::println("Main thread ({}) is not responding", pid);
+                kill(pid, SIGABRT);
+                break;
+            }
+        }
+        else
+        {
+            counter = 0;
+            failed = 0;
+        }
+    }
+}
 
 static void interruptionHandle(int)
 {
@@ -369,9 +376,9 @@ static void interruptionHandle(int)
 void initialize(const Config& config)
 {
     struct sigaction sa;
-    sa.sa_sigaction = &crashHandle;
     sigemptyset(&sa.sa_mask);
 
+#ifdef USE_BACKTRACE
     const auto libbacktrace = dlopen("libbacktrace.so", RTLD_LAZY);
 
     if (not libbacktrace)
@@ -380,6 +387,7 @@ void initialize(const Config& config)
     }
     else
     {
+        sa.sa_sigaction = &crashHandle;
         sa.sa_flags = SA_RESETHAND | SA_SIGINFO;
 
         sigaction(SIGABRT, &sa, nullptr);
@@ -401,6 +409,7 @@ void initialize(const Config& config)
 
         backtraceState = backtraceCreateState(NULL, 0, backtraceErrorCallback, NULL);
     }
+#endif
 
     sa.sa_flags = 0;
     sa.sa_handler = &interruptionHandle;
@@ -412,31 +421,6 @@ void initialize(const Config& config)
         supervisionThread = std::thread(&supervision);
         atexit(&stopSupervision);
     }
-}
-
-MaybeString readLineFromStdin(const std::string_view& prompt)
-{
-    rl_catch_signals = 0;
-    auto buffer = readline(prompt.data());
-
-    if (not buffer)
-    {
-        return "";
-    }
-
-    auto res = std::string(buffer);
-
-    if (*buffer == '\n' or *buffer == '\0')
-    {
-        free(buffer);
-        return "\n";
-    }
-
-    add_history(buffer);
-
-    free(buffer);
-
-    return res;
 }
 
 bool doesFileExist(const char* pathname)

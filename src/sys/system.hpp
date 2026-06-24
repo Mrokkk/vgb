@@ -16,10 +16,6 @@ void stacktraceLog();
 void pingSupervision();
 void stopSupervision();
 
-using MaybeString = std::expected<std::string, std::string>;
-
-MaybeString readLineFromStdin(const std::string_view& prompt);
-
 struct MappedFile final : utils::NonCopyable
 {
     MappedFile()

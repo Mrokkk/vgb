@@ -1,6 +1,4 @@
-#include "serializator.hpp"
 #define LOG_HEADER "RaylibRenderer"
-
 #include "renderer.hpp"
 
 #include <cstdint>
@@ -14,6 +12,7 @@
 #include "game_boy.hpp"
 #include "logger.hpp"
 #include "ppu.hpp"
+#include "serializator.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
 

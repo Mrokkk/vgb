@@ -6,16 +6,16 @@
 #include <string_view>
 #include <vector>
 
-#include "utils/buffer.hpp"
+#include <fmt/fmt_ext.h>
 
 namespace debugger::interpreter
 {
 
 struct LexerState
 {
-    Tokens        tokens;
-    const char*   current;
-    utils::Buffer error;
+    Tokens      tokens;
+    const char* current;
+    std::string error;
 };
 
 using TokenHandler = std::function<bool(LexerState&)>;
@@ -319,8 +319,8 @@ std::expected<Tokens, std::string> parse(const std::string_view& code)
 
         if (not found) [[unlikely]]
         {
-            state.error << "unknown token at \"" << state.current << "\"\n";
-            return std::unexpected(state.error.str());
+            state.error = fmt::format_to_string("unknown token at \"{}\"", state.current);
+            return std::unexpected(std::move(state.error));
         }
     }
 
