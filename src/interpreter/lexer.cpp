@@ -8,10 +8,13 @@
 
 #include <fmt/fmt_ext.h>
 
-namespace debugger::interpreter
+namespace interpreter
 {
 
-struct LexerState
+namespace
+{
+
+struct LexerState final
 {
     Tokens      tokens;
     const char* current;
@@ -19,14 +22,9 @@ struct LexerState
 };
 
 using TokenHandler = std::function<bool(LexerState&)>;
-
-struct TokenMapping
-{
-    Token::Type         type;
-    TokenHandler        handler;
-};
-
 using TokenHandlers = std::vector<TokenHandler>;
+
+}  // namespace
 
 static char peek(LexerState& state)
 {
@@ -329,4 +327,4 @@ std::expected<Tokens, std::string> parse(const std::string_view& code)
     return std::move(state.tokens);
 }
 
-}  // namespace debugger::interpreter
+}  // namespace interpreter

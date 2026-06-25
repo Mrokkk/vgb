@@ -69,16 +69,15 @@ add_library(emulator OBJECT
     src/debugger/games/pokemon_red.cpp
     src/debugger/games/registry.cpp
     src/debugger/imgui.cpp
-    src/debugger/interpreter/command.cpp
-    src/debugger/interpreter/commands.cpp
-    src/debugger/interpreter/interpreter.cpp
-    src/debugger/interpreter/lexer.cpp
-    src/debugger/interpreter/lexer_printers.cpp
     src/debugger/main.cpp
     src/debugger/printer.cpp
     src/event_system.cpp
     src/game_boy.cpp
     src/input.cpp
+    src/interpreter/command.cpp
+    src/interpreter/interpreter.cpp
+    src/interpreter/lexer.cpp
+    src/interpreter/lexer_printers.cpp
     src/joypad.cpp
     src/logger.cpp
     src/memory/cartridge.cpp

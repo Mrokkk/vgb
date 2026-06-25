@@ -5,9 +5,7 @@
 #include <string_view>
 #include <vector>
 
-#include "utils/fwd.hpp"
-
-namespace debugger::interpreter
+namespace interpreter
 {
 
 struct Token
@@ -45,7 +43,4 @@ using Tokens = std::vector<Token>;
 
 std::expected<Tokens, std::string> parse(const std::string_view& code);
 
-utils::Buffer& operator<<(utils::Buffer& buf, const Token::Type type);
-utils::Buffer& operator<<(utils::Buffer& buf, const Token& token);
-
-}  // namespace debugger::interpreter
+}  // namespace interpreter

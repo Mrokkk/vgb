@@ -13,9 +13,9 @@
 #include <imgui_memory_editor/imgui_memory_editor.h>
 
 #include "cpu/sm83.hpp"
-#include "debugger/interpreter/interpreter.hpp"
-#include "debugger/state.hpp"
+#include "debugger/context.hpp"
 #include "game_boy.hpp"
+#include "interpreter/interpreter.hpp"
 #include "logger.hpp"
 #include "logger_reader.hpp"
 #include "memory/memory_map.hpp"
@@ -28,20 +28,25 @@
 namespace debugger
 {
 
-struct BitEntry
+namespace
+{
+
+struct BitEntry final
 {
     uint8_t     shift;
     uint8_t     mask;
     const char* name;
 };
 
-struct IoEntry
+struct IoEntry final
 {
     uint8_t     addr;
     const char* name;
     const char* desc;
     BitEntry    bitEntries[8];
 };
+
+}  // namespace
 
 #define IO_ENTRY(ADDR, NAME, DESC, ...) \
     { \
@@ -390,7 +395,7 @@ static void onLog(const LogEntry& entry)
     }
 }
 
-void initImGui(State& state)
+void initImGui(Context& ctx)
 {
     auto& io = ImGui::GetIO();
     auto& style = ImGui::GetStyle();
@@ -402,20 +407,20 @@ void initImGui(State& state)
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    state.gui.emulationWindow   = true;
-    state.gui.cartridgeWindow   = true;
-    state.gui.cpuWindow         = true;
-    state.gui.consoleWindow     = true;
-    state.gui.mapWindow         = false;
-    state.gui.showScxScy        = true;
-    state.gui.styleEditorWindow = false;
-    state.gui.ioWindow          = true;
-    state.gui.gameWindow        = true;
-    state.gui.focusCmdLine      = false;
-    state.gui.logWindow         = true;
-    state.gui.lineBuffer[0]     = '\0';
-    state.gui.addrBuffer[0]     = '\0';
-    state.gui.ioFilterBuffer[0] = '\0';
+    ctx.gui.emulationWindow   = true;
+    ctx.gui.cartridgeWindow   = true;
+    ctx.gui.cpuWindow         = true;
+    ctx.gui.consoleWindow     = true;
+    ctx.gui.mapWindow         = false;
+    ctx.gui.showScxScy        = true;
+    ctx.gui.styleEditorWindow = false;
+    ctx.gui.ioWindow          = true;
+    ctx.gui.gameWindow        = true;
+    ctx.gui.focusCmdLine      = false;
+    ctx.gui.logWindow         = true;
+    ctx.gui.lineBuffer[0]     = '\0';
+    ctx.gui.addrBuffer[0]     = '\0';
+    ctx.gui.ioFilterBuffer[0] = '\0';
 
     memEditor = utils::makeUnique<MemoryEditor>();
     memEditor->ReadFn          = &readMemory;
@@ -449,7 +454,7 @@ void initImGui(State& state)
     } \
     while (0)
 
-ALWAYS_INLINE static void drawMenuBar(State& state)
+ALWAYS_INLINE static void drawMenuBar(Context& ctx)
 {
     auto mainMenu = ImGui::CreateMainMenuBar();
 
@@ -494,21 +499,21 @@ ALWAYS_INLINE static void drawMenuBar(State& state)
 
     if (auto menu = ImGui::CreateMenu("View"))
     {
-        BOOL_MENU_ITEM("Emulation", nullptr, state.gui.emulationWindow);
-        BOOL_MENU_ITEM("Cartridge", nullptr, state.gui.cartridgeWindow);
-        BOOL_MENU_ITEM("CPU", nullptr, state.gui.cpuWindow);
+        BOOL_MENU_ITEM("Emulation", nullptr, ctx.gui.emulationWindow);
+        BOOL_MENU_ITEM("Cartridge", nullptr, ctx.gui.cartridgeWindow);
+        BOOL_MENU_ITEM("CPU", nullptr, ctx.gui.cpuWindow);
         BOOL_MENU_ITEM("Memory", nullptr, memEditor->Open);
-        BOOL_MENU_ITEM("IO", nullptr, state.gui.ioWindow);
-        BOOL_MENU_ITEM("Map", nullptr, state.gui.mapWindow);
-        BOOL_MENU_ITEM("Console", "`", state.gui.consoleWindow);
-        BOOL_MENU_ITEM("Game", nullptr, state.gui.gameWindow);
-        BOOL_MENU_ITEM("Log", nullptr, state.gui.logWindow);
-        BOOL_MENU_ITEM("Style Editor", nullptr, state.gui.styleEditorWindow);
-        BOOL_MENU_ITEM("Demo", nullptr, state.gui.demoWindow);
+        BOOL_MENU_ITEM("IO", nullptr, ctx.gui.ioWindow);
+        BOOL_MENU_ITEM("Map", nullptr, ctx.gui.mapWindow);
+        BOOL_MENU_ITEM("Console", "`", ctx.gui.consoleWindow);
+        BOOL_MENU_ITEM("Game", nullptr, ctx.gui.gameWindow);
+        BOOL_MENU_ITEM("Log", nullptr, ctx.gui.logWindow);
+        BOOL_MENU_ITEM("Style Editor", nullptr, ctx.gui.styleEditorWindow);
+        BOOL_MENU_ITEM("Demo", nullptr, ctx.gui.demoWindow);
     }
 }
 
-ALWAYS_INLINE static void drawLcd(State&, unsigned int gameTextureId, int fps)
+ALWAYS_INLINE static void drawLcd(Context&, unsigned int gameTextureId, int fps)
 {
     auto window = ImGui::CreateWindow("LCD");
 
@@ -525,14 +530,14 @@ ALWAYS_INLINE static void drawLcd(State&, unsigned int gameTextureId, int fps)
     gb.inputEnabled = ImGui::IsWindowFocused();
 }
 
-ALWAYS_INLINE static void drawCartridgeWindow(State& state)
+ALWAYS_INLINE static void drawCartridgeWindow(Context& ctx)
 {
-    if (not state.gui.cartridgeWindow)
+    if (not ctx.gui.cartridgeWindow)
     {
         return;
     }
 
-    auto window = ImGui::CreateWindow("Cartridge", &state.gui.cartridgeWindow);
+    auto window = ImGui::CreateWindow("Cartridge", &ctx.gui.cartridgeWindow);
 
     if (not window) [[unlikely]]
     {
@@ -550,14 +555,14 @@ ALWAYS_INLINE static void drawCartridgeWindow(State& state)
     ImGui::Text("RAM size: %zu %s", ramSize.value, ramSize.unit);
 }
 
-ALWAYS_INLINE static void drawCpuWindow(State& state)
+ALWAYS_INLINE static void drawCpuWindow(Context& ctx)
 {
-    if (not state.gui.cpuWindow)
+    if (not ctx.gui.cpuWindow)
     {
         return;
     }
 
-    auto window = ImGui::CreateWindow("CPU", &state.gui.cpuWindow);
+    auto window = ImGui::CreateWindow("CPU", &ctx.gui.cpuWindow);
 
     if (not window) [[unlikely]]
     {
@@ -607,7 +612,7 @@ ALWAYS_INLINE static void drawCpuWindow(State& state)
     }
 }
 
-ALWAYS_INLINE static void drawMemoryWindow(State& state)
+ALWAYS_INLINE static void drawMemoryWindow(Context& ctx)
 {
     if (not memEditor->Open)
     {
@@ -628,10 +633,10 @@ ALWAYS_INLINE static void drawMemoryWindow(State& state)
         return;
     }
 
-    if (ImGui::InputText("Go to address", state.gui.addrBuffer, sizeof(state.gui.addrBuffer), ImGuiInputTextFlags_EnterReturnsTrue))
+    if (ImGui::InputText("Go to address", ctx.gui.addrBuffer, sizeof(ctx.gui.addrBuffer), ImGuiInputTextFlags_EnterReturnsTrue))
     {
         char* tmp;
-        auto addr = strtoul(state.gui.addrBuffer, &tmp, 16);
+        auto addr = strtoul(ctx.gui.addrBuffer, &tmp, 16);
         memEditor->GotoAddr = addr;
     }
 
@@ -666,14 +671,14 @@ ALWAYS_INLINE static void drawMemoryWindow(State& state)
     }
 }
 
-ALWAYS_INLINE static void drawConsoleWindow(State& state)
+ALWAYS_INLINE static void drawConsoleWindow(Context& ctx)
 {
-    if (not state.gui.consoleWindow)
+    if (not ctx.gui.consoleWindow)
     {
         return;
     }
 
-    auto window = ImGui::CreateWindow("Console", &state.gui.consoleWindow);
+    auto window = ImGui::CreateWindow("Console", &ctx.gui.consoleWindow);
 
     if (not window) [[unlikely]]
     {
@@ -690,48 +695,48 @@ ALWAYS_INLINE static void drawConsoleWindow(State& state)
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 0});
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{0, 1});
 
-    for (const auto& line : state.consoleLines)
+    for (const auto& line : ctx.console.lines)
     {
         ImGui::TextUnformatted(line.c_str());
     }
 
-    ImGui::TextUnformatted("(vgb) ");
+    ImGui::Text("%s ", ctx.console.prompt.c_str());
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4{0, 0, 0, 0});
     ImGui::PushItemWidth(-1);
 
-    if (state.gui.commandEntered)
+    if (ctx.gui.commandEntered)
     {
         ImGui::SetScrollFromPosY(1.0f);
-        state.gui.commandEntered = false;
+        ctx.gui.commandEntered = false;
     }
 
-    if (ImGui::InputText("#CmdLine", state.gui.lineBuffer, sizeof(state.gui.lineBuffer), ImGuiInputTextFlags_EnterReturnsTrue))
+    if (ImGui::InputText("#CmdLine", ctx.gui.lineBuffer, sizeof(ctx.gui.lineBuffer), ImGuiInputTextFlags_EnterReturnsTrue))
     {
-        state.gui.commandEntered = true;
+        ctx.gui.commandEntered = true;
 
-        std::string command(state.gui.lineBuffer[0] ? state.gui.lineBuffer : state.prevLine);
-        state.gui.lineBuffer[0] = 0;
+        std::string command(ctx.gui.lineBuffer[0] ? ctx.gui.lineBuffer : ctx.prevLine);
+        ctx.gui.lineBuffer[0] = 0;
 
-        logToConsole(state, "{} {}", state.prompt, command);
-        auto result = interpreter::exectuteCommand(std::move(command), state);
+        ctx.console.writeLine("{} {}", ctx.console.prompt, command);
+        auto result = interpreter::exectuteCommand(command);
 
         if (not result) [[unlikely]]
         {
-            state.consoleLines.push_back(std::move(result.error()));
+            ctx.console.addLine(std::move(result.error()));
         }
         else
         {
-            state.prevLine = std::move(command);
+            ctx.prevLine = std::move(command);
         }
 
-        state.gui.focusCmdLine = true;
+        ctx.gui.focusCmdLine = true;
     }
 
-    if (state.gui.focusCmdLine)
+    if (ctx.gui.focusCmdLine)
     {
         ImGui::SetKeyboardFocusHere(-1);
-        state.gui.focusCmdLine = false;
+        ctx.gui.focusCmdLine = false;
     }
 
     if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
@@ -743,64 +748,64 @@ ALWAYS_INLINE static void drawConsoleWindow(State& state)
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
 
-    state.gui.focusCmdLine = ImGui::IsMouseClicked(ImGuiMouseButton_Left) and ImGui::IsWindowHovered();
+    ctx.gui.focusCmdLine = ImGui::IsMouseClicked(ImGuiMouseButton_Left) and ImGui::IsWindowHovered();
 
     if (ImGui::IsWindowFocused() and ImGui::IsKeyReleased(ImGuiKey_C) and ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
     {
-        logToConsole(state, "Interrupted");
+        ctx.console.addLine("Interrupted");
         gb.stop();
     }
 }
 
-ALWAYS_INLINE static void drawMapWindow(State& state)
+ALWAYS_INLINE static void drawMapWindow(Context& ctx)
 {
-    if (not state.gui.mapWindow)
+    if (not ctx.gui.mapWindow)
     {
         return;
     }
 
-    auto window = ImGui::CreateWindow("Map", &state.gui.mapWindow);
+    auto window = ImGui::CreateWindow("Map", &ctx.gui.mapWindow);
 
     if (not window) [[unlikely]]
     {
         return;
     }
 
-    ImGui::Checkbox("Show SCX/SCY window", &state.gui.showScxScy);
+    ImGui::Checkbox("Show SCX/SCY window", &ctx.gui.showScxScy);
     const auto viewportSize = ImGui::GetContentRegionAvail();
     const auto imageSize = scaleToRatio(viewportSize, 1, 1);
     ImGui::SetCursorPos((viewportSize - imageSize) * 0.5 + ImGui::GetCursorPos());
-    ImGui::Image(static_cast<ImTextureID>(gb.renderer->renderMap(state.gui.showScxScy)), imageSize);
+    ImGui::Image(static_cast<ImTextureID>(gb.renderer->renderMap(ctx.gui.showScxScy)), imageSize);
 }
 
-ALWAYS_INLINE static void drawStyleEditorWindow(State& state)
+ALWAYS_INLINE static void drawStyleEditorWindow(Context& ctx)
 {
-    if (not state.gui.styleEditorWindow)
+    if (not ctx.gui.styleEditorWindow)
     {
         return;
     }
 
-    if (auto window = ImGui::CreateWindow("Style Editor", &state.gui.styleEditorWindow))
+    if (auto window = ImGui::CreateWindow("Style Editor", &ctx.gui.styleEditorWindow))
     {
         ImGui::ShowStyleEditor();
     }
 }
 
-ALWAYS_INLINE static void drawIoWindow(State& state)
+ALWAYS_INLINE static void drawIoWindow(Context& ctx)
 {
-    if (not state.gui.ioWindow)
+    if (not ctx.gui.ioWindow)
     {
         return;
     }
 
-    auto window = ImGui::CreateWindow("IO", &state.gui.ioWindow);
+    auto window = ImGui::CreateWindow("IO", &ctx.gui.ioWindow);
 
     if (not window) [[unlikely]]
     {
         return;
     }
 
-    ImGui::InputText("Filter", state.gui.ioFilterBuffer, sizeof(state.gui.ioFilterBuffer));
+    ImGui::InputText("Filter", ctx.gui.ioFilterBuffer, sizeof(ctx.gui.ioFilterBuffer));
 
     constexpr auto tableFlags
         = ImGuiTableFlags_Borders
@@ -826,11 +831,11 @@ ALWAYS_INLINE static void drawIoWindow(State& state)
         ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_NoHide);
         ImGui::TableHeadersRow();
 
-        const auto ioFilterLen = strlen(state.gui.ioFilterBuffer);
+        const auto ioFilterLen = strlen(ctx.gui.ioFilterBuffer);
 
         for (const auto& entry : ioEntries)
         {
-            if (state.gui.ioFilterBuffer[0] and strncasecmp(entry.name, state.gui.ioFilterBuffer, ioFilterLen))
+            if (ctx.gui.ioFilterBuffer[0] and strncasecmp(entry.name, ctx.gui.ioFilterBuffer, ioFilterLen))
             {
                 continue;
             }
@@ -880,32 +885,32 @@ ALWAYS_INLINE static void drawIoWindow(State& state)
     }
 }
 
-ALWAYS_INLINE static void drawGameWindow(State& state)
+ALWAYS_INLINE static void drawGameWindow(Context& ctx)
 {
-    if (not state.gui.gameWindow)
+    if (not ctx.gui.gameWindow)
     {
         return;
     }
 
-    auto window = ImGui::CreateWindow("Game", &state.gui.gameWindow);
+    auto window = ImGui::CreateWindow("Game", &ctx.gui.gameWindow);
 
     if (not window) [[unlikely]]
     {
         return;
     }
 
-    if (not state.game)
+    if (not ctx.game)
     {
         ImGui::TextDisabled("Not supported game");
         return;
     }
 
-    state.game->drawUi();
+    ctx.game->drawUi();
 }
 
-ALWAYS_INLINE static void drawLogWindow(State& state)
+ALWAYS_INLINE static void drawLogWindow(Context& ctx)
 {
-    if (not state.gui.logWindow)
+    if (not ctx.gui.logWindow)
     {
         return;
     }
@@ -913,7 +918,7 @@ ALWAYS_INLINE static void drawLogWindow(State& state)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4{0, 0, 0, 0});
 
-    if (auto window = ImGui::CreateWindow("Log", &state.gui.logWindow)) [[likely]]
+    if (auto window = ImGui::CreateWindow("Log", &ctx.gui.logWindow)) [[likely]]
     {
         ImGui::InputTextMultiline("##Log", buffer.data(), buffer.size() + 1, ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
     }
@@ -922,7 +927,7 @@ ALWAYS_INLINE static void drawLogWindow(State& state)
     ImGui::PopStyleColor();
 }
 
-ALWAYS_INLINE static void drawEmulationWindow(State& state)
+ALWAYS_INLINE static void drawEmulationWindow(Context& ctx)
 {
     if (ImGui::IsKeyReleased(ImGuiKey_F5))
     {
@@ -933,12 +938,12 @@ ALWAYS_INLINE static void drawEmulationWindow(State& state)
         SaveManager::quickLoad();
     }
 
-    if (not state.gui.emulationWindow)
+    if (not ctx.gui.emulationWindow)
     {
         return;
     }
 
-    auto window = ImGui::CreateWindow("Emulation", &state.gui.emulationWindow);
+    auto window = ImGui::CreateWindow("Emulation", &ctx.gui.emulationWindow);
 
     if (not window) [[unlikely]]
     {
@@ -1018,31 +1023,32 @@ void frame(unsigned int gameTextureId, int fps)
 
     ImGui::DockSpaceOverViewport(dockspaceId, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
 
-    auto& state = *reinterpret_cast<State*>(gb.debuggerData);
+    auto& ctx = *reinterpret_cast<Context*>(gb.debuggerData);
 
-    drawMenuBar(state);
-    drawLcd(state, gameTextureId, fps);
-    drawCartridgeWindow(state);
-    drawCpuWindow(state);
-    drawMemoryWindow(state);
-    drawIoWindow(state);
-    drawConsoleWindow(state);
-    drawMapWindow(state);
-    drawStyleEditorWindow(state);
-    drawGameWindow(state);
-    drawLogWindow(state);
-    drawEmulationWindow(state);
+    drawMenuBar(ctx);
+    drawLcd(ctx, gameTextureId, fps);
+    drawCartridgeWindow(ctx);
+    drawCpuWindow(ctx);
+    drawMemoryWindow(ctx);
+    drawIoWindow(ctx);
+    drawConsoleWindow(ctx);
+    drawMapWindow(ctx);
+    drawStyleEditorWindow(ctx);
+    drawGameWindow(ctx);
+    drawLogWindow(ctx);
+    drawEmulationWindow(ctx);
 
-    if (state.gui.demoWindow)
+    if (ctx.gui.demoWindow)
     {
-        ImGui::ShowDemoWindow(&state.gui.demoWindow);
+        ImGui::ShowDemoWindow(&ctx.gui.demoWindow);
     }
 
     if (ImGui::IsKeyReleased(ImGuiKey_GraveAccent))
     {
-        if (state.gui.consoleWindow ^= true)
+        if (ctx.gui.consoleWindow ^= true)
         {
-            state.gui.focusCmdLine = true;
+            ImGui::SetWindowFocus("Console");
+            ctx.gui.focusCmdLine = true;
         }
     }
 }

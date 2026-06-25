@@ -1,16 +1,16 @@
-#include "debugger/interpreter/command.hpp"
 #include "debugger/printer.hpp"
-#include "game_boy.hpp"
+#include "interpreter/command.hpp"
 
 namespace debugger::commands
 {
 
-DEFINE_COMMAND(step)
+DEFINE_AND_REGISTER_COMMAND(step)
 {
     EXECUTOR()
     {
-        gb.cpu.step();
-        printInstruction(state, gb.cpu);
+        auto& ctx = GET_USER_DATA(Context);
+        ctx.gb.cpu.step();
+        printInstruction(ctx);
         return 0;
     }
 

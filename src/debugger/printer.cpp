@@ -6,15 +6,16 @@
 #include "cpu/isa/opcode.hpp"
 #include "cpu/isa/printers.hpp"
 #include "cpu/sm83.hpp"
-#include "debugger/state.hpp"
+#include "debugger/context.hpp"
 
 namespace debugger
 {
 
-void printInstruction(State& state, const cpu::SM83& cpu)
+void printInstruction(Context& ctx)
 {
     bool prefixed = false;
 
+    const auto& cpu = ctx.cpu;
     auto tmpPc = cpu.pc.get();
     cpu::isa::InstructionData tmpCache;
 
@@ -33,8 +34,7 @@ void printInstruction(State& state, const cpu::SM83& cpu)
         tmpCache.appendImmByte(cpu.mem.load8(tmpPc++));
     }
 
-    logToConsole(
-        state,
+    ctx.console.writeLine(
         "{pc:08x}:   {bytes}     | {asm}",
         fmt::arg("pc", cpu.pc.get()),
         fmt::arg("bytes", tmpCache),
@@ -69,11 +69,12 @@ static void printIrqs(uint8_t value)
     }
 }
 
-void printCpuRegs(State& state, const cpu::SM83& cpu)
+void printCpuRegs(Context& ctx)
 {
+    const auto& cpu = ctx.cpu;
     (void)printIrqs;
 #define PRINT_REGISTER(REG, WIDTH) \
-    logToConsole(state, "  " #REG ": {:0" #WIDTH "x}", cpu.REG.get());
+    ctx.console.writeLine("  " #REG ": {:0" #WIDTH "x}", cpu.REG.get());
 
     PRINT_REGISTER(af, 4);
     PRINT_REGISTER(bc, 4);
@@ -97,8 +98,8 @@ void printCpuRegs(State& state, const cpu::SM83& cpu)
     //printIrqs(cpu.$if);
     //fmt::println("}}");
 
-    logToConsole(state, "  T-cycles:     {}", cpu.cycles);
-    logToConsole(state, "  instructions: {}", cpu.instructions);
+    ctx.console.writeLine("  T-cycles:     {}", cpu.cycles);
+    ctx.console.writeLine("  instructions: {}", cpu.instructions);
 }
 
 }  // namespace debugger

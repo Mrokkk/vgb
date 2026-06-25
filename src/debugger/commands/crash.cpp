@@ -1,9 +1,9 @@
-#include "debugger/interpreter/command.hpp"
+#include "interpreter/command.hpp"
 
 namespace debugger::commands
 {
 
-DEFINE_COMMAND(crash)
+DEFINE_AND_REGISTER_COMMAND(crash)
 {
     EXECUTOR()
     {

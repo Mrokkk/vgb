@@ -1,10 +1,10 @@
 #pragma once
 
-#include "state.hpp"
+#include "debugger/context.hpp"
 
 namespace debugger
 {
 
-void initImGui(State& state);
+void initImGui(Context& ctx);
 
 }  // namespace debugger

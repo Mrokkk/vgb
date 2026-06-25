@@ -2,9 +2,9 @@
 
 #include <fmt/base.h>
 
-#include "debugger/interpreter/lexer.hpp"
+#include "interpreter/lexer.hpp"
 
-using namespace debugger::interpreter;
+using namespace interpreter;
 
 fmt::format_context::iterator fmt::formatter<Token::Type>::format(Token::Type type, format_context& ctx) const
 {

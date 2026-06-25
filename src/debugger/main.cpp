@@ -6,16 +6,45 @@
 #include "cpu/exception.hpp"
 #include "cpu/printers.hpp"
 #include "cpu/sm83.hpp"
+#include "debugger/context.hpp"
 #include "debugger/games/registry.hpp"
 #include "debugger/imgui.hpp"
 #include "debugger/printer.hpp"
-#include "debugger/state.hpp"
 #include "game_boy.hpp"
+#include "interpreter/command.hpp"
+#include "interpreter/interpreter.hpp"
+#include "interpreter/operations.hpp"
 
 namespace debugger
 {
 
-static void runCpu(State& state)
+DEFINE_COMMAND(alias)
+{
+    EXECUTOR()
+    {
+        auto& ctx = GET_USER_DATA(Context);
+        if (args.empty())
+        {
+            interpreter::forEachAlias(
+                [&ctx](const std::string& alias, const std::string& command)
+                {
+                    ctx.console.writeLine("{} => {}", alias, command);
+                });
+            return 0;
+        }
+
+        auto alias = GET_ARGUMENT(0, String);
+        auto command = GET_ARGUMENT(1, String);
+
+        interpreter::setAlias(std::string(alias), std::string(command));
+
+        return 0;
+    }
+
+    HELP() = "Create/update/list alias(es)";
+}
+
+static void runCpu(Context& ctx)
 {
     while (1)
     {
@@ -23,55 +52,74 @@ static void runCpu(State& state)
         {
             break;
         }
-        if (static_cast<int>(state.cpu.pc) != state.prevBreakpoint)
+        if (static_cast<int>(ctx.cpu.pc) != ctx.prevBreakpoint)
         {
-            const auto breakpoint = state.breakpoints.find(state.cpu.pc);
+            const auto breakpoint = ctx.breakpoints.find(ctx.cpu.pc);
 
-            if (breakpoint != state.breakpoints.end())
+            if (breakpoint != ctx.breakpoints.end())
             {
-                logToConsole(state, "Hit breakpoint {} at {:#04x}", breakpoint->second.id, breakpoint->second.address);
-                state.prevBreakpoint = state.cpu.pc;
+                ctx.console.writeLine("Hit breakpoint {} at {:#04x}", breakpoint->second.id, breakpoint->second.address);
+                ctx.prevBreakpoint = ctx.cpu.pc;
                 gb.stop();
                 break;
             }
             else
             {
-                state.prevBreakpoint = -1;
+                ctx.prevBreakpoint = -1;
             }
         }
 
-        if (state.cpu.step())
+        if (ctx.cpu.step())
         {
             gb.stop();
             break;
         }
     }
-    if (state.cpu.exc)
+    if (ctx.cpu.exc)
     {
-        logToConsole(state, "Exception raised: {}", state.cpu.exc);
+        ctx.console.writeLine("Exception raised: {}", ctx.cpu.exc);
     }
-    printInstruction(state, state.cpu);
+    printInstruction(ctx);
 }
 
 void main(GameBoy& gb)
 {
-    State state{
+    Context ctx{
+        .gb = gb,
         .cpu = gb.cpu,
         .prevBreakpoint = -1,
-        .prompt = "(vgb)",
+        .console = {
+            .prompt = "(vgb)",
+            .lines = {},
+        }
     };
 
-    initImGui(state);
-    logToConsole(state, "Debugger mode");
-    logToConsole(state, "For help, type \"help\"");
+    initImGui(ctx);
+    ctx.console.addLine("Debugger mode");
+    ctx.console.addLine("For help, type \"help\"");
 
-    gb.debuggerData = static_cast<void*>(&state);
+    interpreter::Operations ops;
+    ops.print =
+        [&ctx](std::string line)
+        {
+            ctx.console.addLine(std::move(line));
+        };
 
-    state.game = games::Registry::createGame(gb.cartridge.getTitle());
+    interpreter::initialize(std::move(ops), &ctx);
+    interpreter::setAlias("b",    "break");
+    interpreter::setAlias("c",    "continue");
+    interpreter::setAlias("cont", "continue");
+    interpreter::setAlias("regs", "registers");
+    interpreter::setAlias("r",    "registers");
+    interpreter::setAlias("s",    "step");
+
+    gb.debuggerData = static_cast<void*>(&ctx);
+
+    ctx.game = games::Registry::createGame(gb.cartridge.getTitle());
 
     while (1)
     {
-        if (state.cpu.exc.type == cpu::Exception::UserInterruption)
+        if (ctx.cpu.exc.type == cpu::Exception::UserInterruption)
         {
             break;
         }
@@ -80,13 +128,13 @@ void main(GameBoy& gb)
         {
             gb.frame();
 
-            if (state.cpu.exc.type == cpu::Exception::UserInterruption)
+            if (ctx.cpu.exc.type == cpu::Exception::UserInterruption)
             {
                 goto finish;
             }
         }
 
-        runCpu(state);
+        runCpu(ctx);
     }
 
 finish:

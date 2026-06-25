@@ -1,29 +1,31 @@
 #include <fmt/base.h>
 
-#include "debugger/interpreter/command.hpp"
-#include "debugger/state.hpp"
+#include "debugger/context.hpp"
+#include "interpreter/command.hpp"
 
 namespace debugger::commands
 {
 
-DEFINE_COMMAND(watch)
+DEFINE_AND_REGISTER_COMMAND(watch)
 {
     EXECUTOR()
     {
         static uint32_t id = 1;
-        auto address = ARGUMENT_GET(0, Integer);
+        auto address = GET_ARGUMENT(0, Integer);
 
-        if (address > 0xffff)
+        auto& ctx = GET_USER_DATA(Context);
+
+        if (address < 0 or address > 0xffff)
         {
-            fmt::println("Invalid address: {:x}", address);
+            ctx.console.writeLine("Invalid address: {:x}", address);
             return 1;
         }
 
         auto newId = id++;
 
-        state.watchpoints[address] = Breakpoint{.address = (uint16_t)address, .id = newId};
+        ctx.watchpoints[address] = Breakpoint{.address = (uint16_t)address, .id = newId};
 
-        fmt::println("Watchpoint {} at {:#04x}", newId, address);
+        ctx.console.writeLine("Watchpoint {} at {:#04x}", newId, address);
 
         return 0;
     }

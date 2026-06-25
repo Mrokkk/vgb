@@ -1,20 +1,21 @@
 #include <fmt/base.h>
 
-#include "debugger/interpreter/command.hpp"
-#include "debugger/interpreter/commands.hpp"
-#include "debugger/state.hpp"
+#include "debugger/context.hpp"
+#include "interpreter/command.hpp"
+#include "interpreter/interpreter.hpp"
 
 namespace debugger::commands
 {
 
-DEFINE_COMMAND(help)
+DEFINE_AND_REGISTER_COMMAND(help)
 {
     EXECUTOR()
     {
-        interpreter::commands.forEach(
-            [&state](const interpreter::Command& command)
+        auto& ctx = GET_USER_DATA(Context);
+        interpreter::forEachCommand(
+            [&ctx](const interpreter::Command& command)
             {
-                logToConsole(state, "{:<30} {}", command.name, command.help);
+                ctx.console.writeLine("{:<30} {}", command.name, command.help);
             });
         return 0;
     }

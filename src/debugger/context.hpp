@@ -3,14 +3,13 @@
 #include <cstdint>
 #include <map>
 #include <string>
-#include <utility>
-#include <vector>
 
 #include <fmt/fmt_ext.h>
 
 #include "cpu/fwd.hpp"
+#include "debugger/console.hpp"
 #include "debugger/games/game.hpp"
-#include "utils/inline.hpp"
+#include "game_boy.hpp"
 
 namespace debugger
 {
@@ -42,27 +41,20 @@ struct GUI
     char ioFilterBuffer[32];
 };
 
-struct State
+struct Context
 {
+    GameBoy&    gb;
     cpu::SM83&  cpu;
     int         prevBreakpoint;
-    std::string prompt;
     std::string prevLine;
 
     std::map<uint16_t, Breakpoint> watchpoints;
     std::map<uint16_t, Breakpoint> breakpoints;
 
-    std::vector<std::string> consoleLines;
-
+    Console console;
     GUI gui;
 
     games::GamePtr game;
 };
-
-template <typename ...Args>
-ALWAYS_INLINE void logToConsole(State& state, fmt::format_string<Args...> fmt, Args&&... args)
-{
-    state.consoleLines.push_back(fmt::format_to_string(std::move(fmt), std::forward<Args>(args)...));
-}
 
 }  // namespace debugger

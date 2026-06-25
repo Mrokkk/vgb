@@ -1,22 +1,24 @@
 #include <fmt/base.h>
 
-#include "debugger/interpreter/command.hpp"
-#include "debugger/state.hpp"
+#include "debugger/context.hpp"
 #include "event.hpp"
 #include "game_boy.hpp"
+#include "interpreter/command.hpp"
 
 namespace debugger::commands
 {
 
-DEFINE_COMMAND(events)
+DEFINE_AND_REGISTER_COMMAND(events)
 {
     EXECUTOR()
     {
         int i = 0;
+        auto& ctx = GET_USER_DATA(Context);
+
         gb.events.forEachEvent(
-            [&i, &state](const Event& ev)
+            [&i, &ctx](const Event& ev)
             {
-                logToConsole(state, "{}: {} in {} cycles", i++, ev.getName(), ev.getWhen() - gb.cpu.cycles);
+                ctx.console.writeLine("{}: {} in {} cycles", i++, ev.getName(), ev.getWhen() - gb.cpu.cycles);
             });
         return 0;
     }

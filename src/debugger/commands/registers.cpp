@@ -1,15 +1,16 @@
-#include "debugger/interpreter/command.hpp"
+#include "debugger/context.hpp"
 #include "debugger/printer.hpp"
-#include "game_boy.hpp"
+#include "interpreter/command.hpp"
 
 namespace debugger::commands
 {
 
-DEFINE_COMMAND(registers)
+DEFINE_AND_REGISTER_COMMAND(registers)
 {
     EXECUTOR()
     {
-        printCpuRegs(state, gb.cpu);
+        auto& ctx = GET_USER_DATA(Context);
+        printCpuRegs(ctx);
         return 0;
     }
 
