@@ -13,7 +13,7 @@
 #include <imgui_memory_editor/imgui_memory_editor.h>
 
 #include "cpu/sm83.hpp"
-#include "debugger/parser.hpp"
+#include "debugger/interpreter/interpreter.hpp"
 #include "debugger/state.hpp"
 #include "game_boy.hpp"
 #include "logger.hpp"
@@ -714,18 +714,17 @@ ALWAYS_INLINE static void drawConsoleWindow(State& state)
         state.gui.lineBuffer[0] = 0;
 
         logToConsole(state, "{} {}", state.prompt, command);
+        auto result = interpreter::exectuteCommand(std::move(command), state);
 
-        auto parsed = parseCommand(command);
-
-        if (not parsed) [[unlikely]]
+        if (not result) [[unlikely]]
         {
-            state.consoleLines.push_back(std::move(parsed.error()));
+            state.consoleLines.push_back(std::move(result.error()));
         }
         else
         {
-            parsed->command.handler(state, parsed->args);
             state.prevLine = std::move(command);
         }
+
         state.gui.focusCmdLine = true;
     }
 

@@ -71,6 +71,7 @@ add_library(emulator OBJECT
     src/debugger/imgui.cpp
     src/debugger/interpreter/command.cpp
     src/debugger/interpreter/commands.cpp
+    src/debugger/interpreter/interpreter.cpp
     src/debugger/interpreter/lexer.cpp
     src/debugger/interpreter/lexer_printers.cpp
     src/debugger/main.cpp

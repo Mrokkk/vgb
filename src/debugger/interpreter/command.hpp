@@ -128,5 +128,4 @@ struct CommandBase
     } \
     namespace _##NAME
 
-
 }  // namespace debugger::interpreter
