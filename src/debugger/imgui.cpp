@@ -12,6 +12,7 @@
 #include <imgui_internal.h>
 #include <imgui_memory_editor/imgui_memory_editor.h>
 
+#include "cpu/isa/decoder.hpp"
 #include "cpu/sm83.hpp"
 #include "debugger/context.hpp"
 #include "game_boy.hpp"
@@ -418,6 +419,7 @@ void initImGui(Context& ctx)
     ctx.gui.gameWindow        = true;
     ctx.gui.focusCmdLine      = false;
     ctx.gui.logWindow         = true;
+    ctx.gui.disassemblyWindow = true;
     ctx.gui.lineBuffer[0]     = '\0';
     ctx.gui.addrBuffer[0]     = '\0';
     ctx.gui.ioFilterBuffer[0] = '\0';
@@ -503,6 +505,7 @@ ALWAYS_INLINE static void drawMenuBar(Context& ctx)
         BOOL_MENU_ITEM("Cartridge", nullptr, ctx.gui.cartridgeWindow);
         BOOL_MENU_ITEM("CPU", nullptr, ctx.gui.cpuWindow);
         BOOL_MENU_ITEM("Memory", nullptr, memEditor->Open);
+        BOOL_MENU_ITEM("Disassembly window", nullptr, ctx.gui.disassemblyWindow);
         BOOL_MENU_ITEM("IO", nullptr, ctx.gui.ioWindow);
         BOOL_MENU_ITEM("Map", nullptr, ctx.gui.mapWindow);
         BOOL_MENU_ITEM("Console", "`", ctx.gui.consoleWindow);
@@ -1016,6 +1019,60 @@ ALWAYS_INLINE static void drawEmulationWindow(Context& ctx)
     }
 }
 
+ALWAYS_INLINE static void drawDisassemblyWindow(Context& ctx)
+{
+    if (not ctx.gui.disassemblyWindow)
+    {
+        return;
+    }
+
+    auto window = ImGui::CreateWindow("Disassembly", &ctx.gui.disassemblyWindow);
+
+    if (not window) [[unlikely]]
+    {
+        return;
+    }
+
+    if (ctx.gb.state == GameBoy::State::Running)
+    {
+        ImGui::Text("Emulation is running");
+        return;
+    }
+
+    auto disassembleCtx = cpu::isa::DisassembleContext::create(ctx.cpu, ctx.cpu.pc);
+
+    constexpr auto tableFlags
+        = ImGuiTableFlags_Borders
+        | ImGuiTableFlags_Resizable
+        | ImGuiTableFlags_RowBg
+        | ImGuiTableFlags_ScrollY
+        | ImGuiTableFlags_NoBordersInBody;
+
+    if (auto table = ImGui::CreateTable("Disassembly", 3, tableFlags))
+    {
+        ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_NoHide);
+        ImGui::TableSetupColumn("Bytes");
+        ImGui::TableSetupColumn("Disassembly", ImGuiTableColumnFlags_NoHide);
+        ImGui::TableHeadersRow();
+
+        for (int i = 0; i < 10; ++i)
+        {
+            auto addr = disassembleCtx.pc;
+            cpu::isa::disassemble(disassembleCtx);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("%04x", addr);
+            ImGui::TableNextColumn();
+            for (size_t i = 0; i < disassembleCtx.data.bytes; ++i)
+            {
+                ImGui::SameLineText("%02x", disassembleCtx.data.data[i]);
+            }
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(disassembleCtx.disassembled.c_str());
+        }
+    }
+}
+
 void frame(unsigned int gameTextureId, int fps)
 {
     const auto dockspaceId = ImGui::GetID("vgb dockspace");
@@ -1037,6 +1094,7 @@ void frame(unsigned int gameTextureId, int fps)
     drawGameWindow(ctx);
     drawLogWindow(ctx);
     drawEmulationWindow(ctx);
+    drawDisassemblyWindow(ctx);
 
     if (ctx.gui.demoWindow)
     {

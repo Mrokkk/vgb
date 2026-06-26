@@ -1,10 +1,12 @@
 #include "decoder.hpp"
 
 #include <fmt/base.h>
+#include <fmt/fmt_ext.h>
 #include <string_view>
 
 #include "cpu/isa/opcode.hpp"
 #include "cpu/isa/operand.hpp"
+#include "cpu/sm83.hpp"
 
 namespace cpu::isa
 {
@@ -130,6 +132,32 @@ static auto decode(const Decode& d, fmt::format_context& ctx)
 Decode decode(const Opcode& opcode, const InstructionData& data)
 {
     return Decode{opcode, data};
+}
+
+void disassemble(DisassembleContext& ctx)
+{
+    auto& cpu = ctx.cpu;
+    bool prefixed = false;
+
+    ctx.data.clear();
+    uint8_t pcValue = ctx.data.appendOpcodeByte(cpu.mem.load8(ctx.pc++));
+
+    if (pcValue == 0xcb)
+    {
+        prefixed = true;
+        pcValue = ctx.data.appendOpcodeByte(cpu.mem.load8(ctx.pc++));
+    }
+
+    const auto& opcode = cpu.isa.getOpcode(prefixed, pcValue);
+
+    ctx.opcode = &opcode;
+
+    for (uint8_t i = ctx.data.bytes; i < opcode.bytes; ++i)
+    {
+        ctx.data.appendImmByte(cpu.mem.load8(ctx.pc++));
+    }
+
+    ctx.disassembled = fmt::format_to_string("{}", cpu::isa::decode(opcode, ctx.data));
 }
 
 }  // namespace cpu::isa

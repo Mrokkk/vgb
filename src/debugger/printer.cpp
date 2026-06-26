@@ -3,7 +3,6 @@
 #include <fmt/base.h>
 
 #include "cpu/isa/decoder.hpp"
-#include "cpu/isa/opcode.hpp"
 #include "cpu/isa/printers.hpp"
 #include "cpu/sm83.hpp"
 #include "debugger/context.hpp"
@@ -13,32 +12,15 @@ namespace debugger
 
 void printInstruction(Context& ctx)
 {
-    bool prefixed = false;
+    auto disCtx = cpu::isa::DisassembleContext::create(ctx.cpu, ctx.cpu.pc);
 
-    const auto& cpu = ctx.cpu;
-    auto tmpPc = cpu.pc.get();
-    cpu::isa::InstructionData tmpCache;
-
-    uint8_t pcValue = tmpCache.appendOpcodeByte(cpu.mem.load8(tmpPc++));
-
-    if (pcValue == 0xcb)
-    {
-        prefixed = true;
-        pcValue = tmpCache.appendOpcodeByte(cpu.mem.load8(tmpPc++));
-    }
-
-    const auto& opcode = cpu.isa.getOpcode(prefixed, pcValue);
-
-    for (uint8_t i = tmpCache.bytes; i < opcode.bytes; ++i)
-    {
-        tmpCache.appendImmByte(cpu.mem.load8(tmpPc++));
-    }
+    cpu::isa::disassemble(disCtx);
 
     ctx.console.writeLine(
         "{pc:08x}:   {bytes}     | {asm}",
-        fmt::arg("pc", cpu.pc.get()),
-        fmt::arg("bytes", tmpCache),
-        fmt::arg("asm", cpu::isa::decode(opcode, tmpCache)));
+        fmt::arg("pc", ctx.cpu.pc.get()),
+        fmt::arg("bytes", disCtx.data),
+        fmt::arg("asm", disCtx.disassembled));
 }
 
 static const char* irqName(cpu::IRQ irq)

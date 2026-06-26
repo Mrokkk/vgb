@@ -35,6 +35,7 @@ struct GUI
     bool        focusCmdLine;
     bool        demoWindow;
     bool        logWindow;
+    bool        disassemblyWindow;
 
     char lineBuffer[256];
     char addrBuffer[32];
