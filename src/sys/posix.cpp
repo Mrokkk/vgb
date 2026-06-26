@@ -520,4 +520,22 @@ std::expected<bool, std::string> saveToFile(const char* pathname, const void* da
     return true;
 }
 
+std::string getConfigDir()
+{
+    const auto home = std::getenv("HOME");
+
+    if (not home)
+    {
+        return {};
+    }
+
+    std::string path(home);
+
+    path += "/.config/vgb";
+
+    mkdir(path.c_str(), 0755);
+
+    return {path};
+}
+
 }  // namespace sys

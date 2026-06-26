@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
 #include <string>
 #include <strings.h>
 #include <utility>
@@ -22,6 +23,7 @@
 #include "memory/memory_map.hpp"
 #include "ppu.hpp"
 #include "save_manager.hpp"
+#include "sys/system.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
 #include "utils/units.hpp"
@@ -396,33 +398,67 @@ static void onLog(const LogEntry& entry)
     }
 }
 
+void* openIni(ImGuiContext*, ImGuiSettingsHandler* s, const char*)
+{
+    return s->UserData;
+}
+
+#define READ_BOOL(STRUCT, BOOL) \
+    if (sscanf(line, #BOOL "=%i", &tmp) == 1) \
+    { \
+        gui.BOOL = tmp; \
+        return; \
+    }
+
+static void readIniLine(ImGuiContext*, ImGuiSettingsHandler* s, void*, const char* line)
+{
+    int tmp;
+    auto& gui = *static_cast<GUI*>(s->UserData);
+    READ_BOOL(gui, emulationWindow);
+    READ_BOOL(gui, cartridgeWindow);
+    READ_BOOL(gui, cpuWindow);
+    READ_BOOL(gui, consoleWindow);
+    READ_BOOL(gui, mapWindow);
+    READ_BOOL(gui, showScxScy);
+    READ_BOOL(gui, styleEditorWindow);
+    READ_BOOL(gui, ioWindow);
+    READ_BOOL(gui, gameWindow);
+    READ_BOOL(gui, demoWindow);
+    READ_BOOL(gui, logWindow);
+    READ_BOOL(gui, disassemblyWindow);
+    if (sscanf(line, "memEditorWindow=%i", &tmp) == 1)
+    {
+        memEditor->Open = tmp;
+        return;
+    }
+}
+
+#define WRITE_BOOL(BOOL) \
+    buf->appendf(#BOOL "=%i\n", gui.BOOL)
+
+static void writeIni(ImGuiContext*, ImGuiSettingsHandler* s, ImGuiTextBuffer* buf)
+{
+    auto& gui = *static_cast<GUI*>(s->UserData);
+    buf->reserve(200);
+    buf->appendf("[%s][Data]\n", s->TypeName);
+    WRITE_BOOL(emulationWindow);
+    WRITE_BOOL(cartridgeWindow);
+    WRITE_BOOL(cpuWindow);
+    WRITE_BOOL(consoleWindow);
+    WRITE_BOOL(mapWindow);
+    WRITE_BOOL(showScxScy);
+    WRITE_BOOL(styleEditorWindow);
+    WRITE_BOOL(ioWindow);
+    WRITE_BOOL(gameWindow);
+    WRITE_BOOL(demoWindow);
+    WRITE_BOOL(logWindow);
+    WRITE_BOOL(disassemblyWindow);
+    buf->appendf("memEditorWindow=%i\n", memEditor->Open);
+}
+
 void initImGui(Context& ctx)
 {
-    auto& io = ImGui::GetIO();
-    auto& style = ImGui::GetStyle();
-
-    style.FontSizeBase      = 16;
-    style.WindowBorderSize  = 0;
-    style.FrameRounding     = 5.0f;
-    style.ScrollbarRounding = 5.0f;
-
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-    ctx.gui.emulationWindow   = true;
-    ctx.gui.cartridgeWindow   = true;
-    ctx.gui.cpuWindow         = true;
-    ctx.gui.consoleWindow     = true;
-    ctx.gui.mapWindow         = false;
-    ctx.gui.showScxScy        = true;
-    ctx.gui.styleEditorWindow = false;
-    ctx.gui.ioWindow          = true;
-    ctx.gui.gameWindow        = true;
-    ctx.gui.focusCmdLine      = false;
-    ctx.gui.logWindow         = true;
-    ctx.gui.disassemblyWindow = true;
-    ctx.gui.lineBuffer[0]     = '\0';
-    ctx.gui.addrBuffer[0]     = '\0';
-    ctx.gui.ioFilterBuffer[0] = '\0';
+    memset(reinterpret_cast<void*>(&ctx.gui), 0, offsetof(GUI, iniPath));
 
     memEditor = utils::makeUnique<MemoryEditor>();
     memEditor->ReadFn          = &readMemory;
@@ -430,7 +466,34 @@ void initImGui(Context& ctx)
     memEditor->Cols            = 8;
     memEditor->OptShowOptions  = false;
     memEditor->OptUpperCaseHex = false;
-    memEditor->Open            = true;
+    memEditor->Open            = false;
+
+    {
+        std::filesystem::path iniPath(sys::getConfigDir());
+        iniPath /= "gui.ini";
+        ctx.gui.iniPath = iniPath.native();
+    }
+
+    ImGuiSettingsHandler iniHandler;
+    iniHandler.TypeName = "UserData";
+    iniHandler.TypeHash = ImHashStr("UserData");
+    iniHandler.ReadOpenFn = &openIni;
+    iniHandler.ReadLineFn = &readIniLine;
+    iniHandler.WriteAllFn = &writeIni;
+    iniHandler.UserData = &ctx.gui;
+    ImGui::AddSettingsHandler(&iniHandler);
+
+    auto& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    ImGui::LoadIniSettingsFromDisk(ctx.gui.iniPath.c_str());
+
+    auto& style = ImGui::GetStyle();
+    style.FontSizeBase      = 16;
+    style.WindowBorderSize  = 0;
+    style.FrameRounding     = 5.0f;
+    style.ScrollbarRounding = 5.0f;
 
     loggerReader.forEachLogEntry(
         [](const LogEntry& e)
@@ -439,6 +502,11 @@ void initImGui(Context& ctx)
         });
 
     loggerReader.onLog(&onLog);
+}
+
+void deinitImGui(Context& ctx)
+{
+    ImGui::SaveIniSettingsToDisk(ctx.gui.iniPath.c_str());
 }
 
 #define BOOL_MENU_ITEM(NAME, SHRTC, BOOL) \
@@ -533,19 +601,20 @@ ALWAYS_INLINE static void drawLcd(Context&, unsigned int gameTextureId, int fps)
     gb.inputEnabled = ImGui::IsWindowFocused();
 }
 
+#define CREATE_WINDOW(NAME, VARIABLE) \
+    if (not VARIABLE) \
+    { \
+        return; \
+    } \
+    auto window = ImGui::CreateWindow(NAME, &VARIABLE); \
+    if (not window) [[unlikely]] \
+    { \
+        return; \
+    }
+
 ALWAYS_INLINE static void drawCartridgeWindow(Context& ctx)
 {
-    if (not ctx.gui.cartridgeWindow)
-    {
-        return;
-    }
-
-    auto window = ImGui::CreateWindow("Cartridge", &ctx.gui.cartridgeWindow);
-
-    if (not window) [[unlikely]]
-    {
-        return;
-    }
+    CREATE_WINDOW("Cartridge", ctx.gui.cartridgeWindow);
 
     ImGui::Text("Path: %s", gb.config.cartridgePath.c_str());
     ImGui::Text("Title: %s", gb.cartridge.getTitle());
@@ -560,17 +629,7 @@ ALWAYS_INLINE static void drawCartridgeWindow(Context& ctx)
 
 ALWAYS_INLINE static void drawCpuWindow(Context& ctx)
 {
-    if (not ctx.gui.cpuWindow)
-    {
-        return;
-    }
-
-    auto window = ImGui::CreateWindow("CPU", &ctx.gui.cpuWindow);
-
-    if (not window) [[unlikely]]
-    {
-        return;
-    }
+    CREATE_WINDOW("CPU", ctx.gui.cpuWindow);
 
     ImGui::Text("State: %s", gb.cpu.state == cpu::SM83::State::Halted ? "halted" : "running");
 
@@ -676,17 +735,7 @@ ALWAYS_INLINE static void drawMemoryWindow(Context& ctx)
 
 ALWAYS_INLINE static void drawConsoleWindow(Context& ctx)
 {
-    if (not ctx.gui.consoleWindow)
-    {
-        return;
-    }
-
-    auto window = ImGui::CreateWindow("Console", &ctx.gui.consoleWindow);
-
-    if (not window) [[unlikely]]
-    {
-        return;
-    }
+    CREATE_WINDOW("Console", ctx.gui.consoleWindow);
 
     auto scroll = ImGui::CreateChild("##Scroll");
 
@@ -762,18 +811,7 @@ ALWAYS_INLINE static void drawConsoleWindow(Context& ctx)
 
 ALWAYS_INLINE static void drawMapWindow(Context& ctx)
 {
-    if (not ctx.gui.mapWindow)
-    {
-        return;
-    }
-
-    auto window = ImGui::CreateWindow("Map", &ctx.gui.mapWindow);
-
-    if (not window) [[unlikely]]
-    {
-        return;
-    }
-
+    CREATE_WINDOW("Map", ctx.gui.mapWindow);
     ImGui::Checkbox("Show SCX/SCY window", &ctx.gui.showScxScy);
     const auto viewportSize = ImGui::GetContentRegionAvail();
     const auto imageSize = scaleToRatio(viewportSize, 1, 1);
@@ -783,30 +821,13 @@ ALWAYS_INLINE static void drawMapWindow(Context& ctx)
 
 ALWAYS_INLINE static void drawStyleEditorWindow(Context& ctx)
 {
-    if (not ctx.gui.styleEditorWindow)
-    {
-        return;
-    }
-
-    if (auto window = ImGui::CreateWindow("Style Editor", &ctx.gui.styleEditorWindow))
-    {
-        ImGui::ShowStyleEditor();
-    }
+    CREATE_WINDOW("Style Editor", ctx.gui.styleEditorWindow);
+    ImGui::ShowStyleEditor();
 }
 
 ALWAYS_INLINE static void drawIoWindow(Context& ctx)
 {
-    if (not ctx.gui.ioWindow)
-    {
-        return;
-    }
-
-    auto window = ImGui::CreateWindow("IO", &ctx.gui.ioWindow);
-
-    if (not window) [[unlikely]]
-    {
-        return;
-    }
+    CREATE_WINDOW("IO", ctx.gui.ioWindow);
 
     ImGui::InputText("Filter", ctx.gui.ioFilterBuffer, sizeof(ctx.gui.ioFilterBuffer));
 
@@ -890,17 +911,7 @@ ALWAYS_INLINE static void drawIoWindow(Context& ctx)
 
 ALWAYS_INLINE static void drawGameWindow(Context& ctx)
 {
-    if (not ctx.gui.gameWindow)
-    {
-        return;
-    }
-
-    auto window = ImGui::CreateWindow("Game", &ctx.gui.gameWindow);
-
-    if (not window) [[unlikely]]
-    {
-        return;
-    }
+    CREATE_WINDOW("Game", ctx.gui.gameWindow);
 
     if (not ctx.game)
     {
@@ -941,17 +952,7 @@ ALWAYS_INLINE static void drawEmulationWindow(Context& ctx)
         SaveManager::quickLoad();
     }
 
-    if (not ctx.gui.emulationWindow)
-    {
-        return;
-    }
-
-    auto window = ImGui::CreateWindow("Emulation", &ctx.gui.emulationWindow);
-
-    if (not window) [[unlikely]]
-    {
-        return;
-    }
+    CREATE_WINDOW("Emulation", ctx.gui.emulationWindow);
 
     ImGui::SeparatorText("Emulation");
     {
@@ -1021,17 +1022,7 @@ ALWAYS_INLINE static void drawEmulationWindow(Context& ctx)
 
 ALWAYS_INLINE static void drawDisassemblyWindow(Context& ctx)
 {
-    if (not ctx.gui.disassemblyWindow)
-    {
-        return;
-    }
-
-    auto window = ImGui::CreateWindow("Disassembly", &ctx.gui.disassemblyWindow);
-
-    if (not window) [[unlikely]]
-    {
-        return;
-    }
+    CREATE_WINDOW("Disassembly", ctx.gui.disassemblyWindow);
 
     if (ctx.gb.state == GameBoy::State::Running)
     {

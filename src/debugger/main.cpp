@@ -138,6 +138,7 @@ void main(GameBoy& gb)
     }
 
 finish:
+    deinitImGui(ctx);
     gb.debuggerData = nullptr;
 }
 

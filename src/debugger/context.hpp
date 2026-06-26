@@ -40,6 +40,8 @@ struct GUI
     char lineBuffer[256];
     char addrBuffer[32];
     char ioFilterBuffer[32];
+
+    std::string iniPath;
 };
 
 struct Context
