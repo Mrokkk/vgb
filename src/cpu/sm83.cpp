@@ -36,6 +36,7 @@ SM83::SM83()
     Serializator::registerData(cycles);
     Serializator::registerData(instructions);
     Serializator::registerData(reinterpret_cast<void*>(&mem), sizeof(mem));
+    Serializator::registerData(callstack);
     Serializator::registerEvents({&ei});
 }
 
@@ -57,7 +58,7 @@ int SM83::step()
     if (isIrqActive(IRQ)) \
     { \
         handleIrq(IRQ); \
-        goto irqHandled; \
+        return 0; \
     }
 
         HANDLE_IRQ(IRQ::VBlank);
@@ -73,7 +74,6 @@ int SM83::step()
         return 0;
     }
 
-irqHandled:
     bool prefixed = false;
 
     const uint16_t oldPc = pc;
@@ -148,6 +148,7 @@ int SM83::execute(const cpu::isa::Opcode& opcode, cpu::isa::InstructionData data
 void SM83::clear()
 {
     memset(&regs, 0, sizeof(regs));
+    memset(&callstack, 0, sizeof(callstack));
 
     state        = State::Running;
     cycles       = 0;
@@ -167,9 +168,20 @@ void SM83::handleIrq(IRQ irq)
     ime = 0;
     sp -= 2;
     mem.store16(sp, pc);
+    pushStackFrame();
     pc = 0x40 + 0x08 * uint8_t(irq);
     cycles += IRQ_CYCLES;
     state = State::Running;
+}
+
+void SM83::pushStackFrame()
+{
+    callstack.push(pc, gb.cartridge.getRomBank());
+}
+
+void SM83::popStackFrame()
+{
+    callstack.pop();
 }
 
 }  // namespace cpu

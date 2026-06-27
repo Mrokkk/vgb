@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "cpu/callstack.hpp"
 #include "cpu/exception.hpp"
 #include "cpu/isa/instruction_set.hpp"
 #include "cpu/register.hpp"
@@ -109,6 +110,8 @@ struct SM83 final : utils::Immobile
     }
 
     void scheduleEi();
+    void pushStackFrame();
+    void popStackFrame();
 
 private:
     void clear();
@@ -128,6 +131,7 @@ public:
     State                state;
     size_t               cycles;
     size_t               instructions;
+    Callstack            callstack;
     memory::Memory       mem;
     isa::InstructionSet  isa;
 };

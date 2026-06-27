@@ -8,6 +8,7 @@ template = """
 cpu.pc = cpu.mem.load16(cpu.sp);
 cpu.sp += 2;
 cpu.ime = 1;
+cpu.popStackFrame();
 """
 
 def RETI(opcode : Opcode):

@@ -60,17 +60,20 @@ add_library(emulator OBJECT
     src/debugger/commands/break.cpp
     src/debugger/commands/continue.cpp
     src/debugger/commands/crash.cpp
+    src/debugger/commands/delete.cpp
     src/debugger/commands/events.cpp
     src/debugger/commands/help.cpp
     src/debugger/commands/registers.cpp
     src/debugger/commands/reset.cpp
     src/debugger/commands/step.cpp
+    src/debugger/commands/symbol.cpp
     src/debugger/commands/watch.cpp
     src/debugger/games/pokemon_red.cpp
     src/debugger/games/registry.cpp
     src/debugger/imgui.cpp
     src/debugger/main.cpp
     src/debugger/printer.cpp
+    src/debugger/symbols_map.cpp
     src/event_system.cpp
     src/game_boy.cpp
     src/input.cpp
@@ -90,6 +93,7 @@ add_library(emulator OBJECT
     src/save_manager.cpp
     src/serializator.cpp
     src/sys/posix.cpp
+    src/thread.cpp
     src/timer.cpp
     src/utils/string.cpp
     src/utils/time.cpp

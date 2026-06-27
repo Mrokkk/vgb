@@ -9,6 +9,7 @@
 #include "cpu/fwd.hpp"
 #include "debugger/console.hpp"
 #include "debugger/games/game.hpp"
+#include "debugger/symbols_map.hpp"
 #include "game_boy.hpp"
 
 namespace debugger
@@ -36,6 +37,14 @@ struct GUI
     bool        demoWindow;
     bool        logWindow;
     bool        disassemblyWindow;
+    bool        callstackWindow;
+    size_t      counter;
+    float       ips;
+    float       mhz;
+    float       sumIps;
+    float       sumMhz;
+    uint64_t    prevInstructions;
+    uint64_t    prevCycles;
 
     char lineBuffer[256];
     char addrBuffer[32];
@@ -56,6 +65,7 @@ struct Context
 
     Console console;
     GUI gui;
+    SymbolsMap symbols;
 
     games::GamePtr game;
 };

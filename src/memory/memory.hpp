@@ -4,6 +4,7 @@
 
 #include "memory/generic.hpp"
 #include "memory/memory_map.hpp"
+#include "utils/inline.hpp"
 
 namespace memory
 {
@@ -20,6 +21,11 @@ struct Memory final
 
     uint16_t load16(uint16_t addr) const;
     void     store16(uint16_t addr, uint16_t val);
+
+    ALWAYS_INLINE bool isBootRomEnabled() const
+    {
+        return mBootRomEnabled;
+    }
 
     BankedMemory<Map::VRAM, 2>        vram;
     GenericRAM<Map::BASE_WRAM>        baseWorkRam;

@@ -13,6 +13,7 @@ if (not ({{ condition }}))
 {%- endif %}
 cpu.pc = cpu.mem.load16(cpu.sp);
 cpu.sp += 2;
+cpu.popStackFrame();
 """
 
 def RET(opcode : Opcode):

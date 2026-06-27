@@ -94,6 +94,7 @@ void main(GameBoy& gb)
         }
     };
 
+    ctx.symbols.initialize(ctx);
     initImGui(ctx);
     ctx.console.addLine("Debugger mode");
     ctx.console.addLine("For help, type \"help\"");
@@ -112,6 +113,7 @@ void main(GameBoy& gb)
     interpreter::setAlias("regs", "registers");
     interpreter::setAlias("r",    "registers");
     interpreter::setAlias("s",    "step");
+    COMMAND(alias)::registerCommand(&ctx);
 
     gb.debuggerData = static_cast<void*>(&ctx);
 

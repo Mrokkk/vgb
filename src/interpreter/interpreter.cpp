@@ -71,6 +71,7 @@ static MaybeArguments getArgs(const Tokens& tokens)
                 break;
 
             case interpreter::Token::Type::Identifier:
+            case interpreter::Token::Type::StringLiteral:
                 args.emplace_back(token.value);
                 break;
 

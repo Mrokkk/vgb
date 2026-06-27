@@ -84,21 +84,14 @@ struct Cartridge final : utils::Immobile
     uint8_t loadRam(uint16_t addr) const;
     void storeRam(uint16_t addr, uint8_t value);
 
-    ALWAYS_INLINE uint32_t romSize() const
+    ALWAYS_INLINE uint32_t getRomSize() const
     {
-        return 32 * KiB * (1 << mHeader->romSize);
+        return mRomSize;
     }
 
-    ALWAYS_INLINE uint32_t ramSize() const
+    ALWAYS_INLINE uint32_t getRamSize() const
     {
-        switch (mHeader->ramSize)
-        {
-            case 2: return 8 * KiB;
-            case 3: return 32 * KiB;
-            case 4: return 128 * KiB;
-            case 5: return 64 * KiB;
-        }
-        return 0;
+        return mRamSize;
     }
 
     ALWAYS_INLINE uint8_t* getRom()
@@ -109,6 +102,16 @@ struct Cartridge final : utils::Immobile
     ALWAYS_INLINE void* getRam() const
     {
         return mRam;
+    }
+
+    ALWAYS_INLINE uint8_t getRomBank() const
+    {
+        return mBank;
+    }
+
+    ALWAYS_INLINE uint8_t getRamBank() const
+    {
+        return mRamBank;
     }
 
     ALWAYS_INLINE bool isRamDirty() const

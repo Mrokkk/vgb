@@ -403,7 +403,7 @@ void* openIni(ImGuiContext*, ImGuiSettingsHandler* s, const char*)
     return s->UserData;
 }
 
-#define READ_BOOL(STRUCT, BOOL) \
+#define READ_BOOL(BOOL) \
     if (sscanf(line, #BOOL "=%i", &tmp) == 1) \
     { \
         gui.BOOL = tmp; \
@@ -414,18 +414,19 @@ static void readIniLine(ImGuiContext*, ImGuiSettingsHandler* s, void*, const cha
 {
     int tmp;
     auto& gui = *static_cast<GUI*>(s->UserData);
-    READ_BOOL(gui, emulationWindow);
-    READ_BOOL(gui, cartridgeWindow);
-    READ_BOOL(gui, cpuWindow);
-    READ_BOOL(gui, consoleWindow);
-    READ_BOOL(gui, mapWindow);
-    READ_BOOL(gui, showScxScy);
-    READ_BOOL(gui, styleEditorWindow);
-    READ_BOOL(gui, ioWindow);
-    READ_BOOL(gui, gameWindow);
-    READ_BOOL(gui, demoWindow);
-    READ_BOOL(gui, logWindow);
-    READ_BOOL(gui, disassemblyWindow);
+    READ_BOOL(emulationWindow);
+    READ_BOOL(cartridgeWindow);
+    READ_BOOL(cpuWindow);
+    READ_BOOL(consoleWindow);
+    READ_BOOL(mapWindow);
+    READ_BOOL(showScxScy);
+    READ_BOOL(styleEditorWindow);
+    READ_BOOL(ioWindow);
+    READ_BOOL(gameWindow);
+    READ_BOOL(demoWindow);
+    READ_BOOL(logWindow);
+    READ_BOOL(disassemblyWindow);
+    READ_BOOL(callstackWindow);
     if (sscanf(line, "memEditorWindow=%i", &tmp) == 1)
     {
         memEditor->Open = tmp;
@@ -453,6 +454,7 @@ static void writeIni(ImGuiContext*, ImGuiSettingsHandler* s, ImGuiTextBuffer* bu
     WRITE_BOOL(demoWindow);
     WRITE_BOOL(logWindow);
     WRITE_BOOL(disassemblyWindow);
+    WRITE_BOOL(callstackWindow);
     buf->appendf("memEditorWindow=%i\n", memEditor->Open);
 }
 
@@ -574,6 +576,7 @@ ALWAYS_INLINE static void drawMenuBar(Context& ctx)
         BOOL_MENU_ITEM("CPU", nullptr, ctx.gui.cpuWindow);
         BOOL_MENU_ITEM("Memory", nullptr, memEditor->Open);
         BOOL_MENU_ITEM("Disassembly window", nullptr, ctx.gui.disassemblyWindow);
+        BOOL_MENU_ITEM("Callstack window", nullptr, ctx.gui.callstackWindow);
         BOOL_MENU_ITEM("IO", nullptr, ctx.gui.ioWindow);
         BOOL_MENU_ITEM("Map", nullptr, ctx.gui.mapWindow);
         BOOL_MENU_ITEM("Console", "`", ctx.gui.consoleWindow);
@@ -620,8 +623,8 @@ ALWAYS_INLINE static void drawCartridgeWindow(Context& ctx)
     ImGui::Text("Title: %s", gb.cartridge.getTitle());
     ImGui::Text("Type: %s", gb.cartridge.getType());
 
-    auto romSize = utils::humanReadable(gb.cartridge.romSize());
-    auto ramSize = utils::humanReadable(gb.cartridge.ramSize());
+    auto romSize = utils::humanReadable(gb.cartridge.getRomSize());
+    auto ramSize = utils::humanReadable(gb.cartridge.getRamSize());
 
     ImGui::Text("ROM size: %zu %s", romSize.value, romSize.unit);
     ImGui::Text("RAM size: %zu %s", ramSize.value, ramSize.unit);
@@ -669,8 +672,25 @@ ALWAYS_INLINE static void drawCpuWindow(Context& ctx)
 
     ImGui::SeparatorText("Stats");
     {
+        auto deltaTime = ImGui::GetIO().DeltaTime;
+        if (ctx.gui.counter++ == 60)
+        {
+            ctx.gui.counter = 0;
+            ctx.gui.ips = ctx.gui.sumIps / 60;
+            ctx.gui.mhz = ctx.gui.sumMhz / 60;
+            ctx.gui.sumIps = 0;
+            ctx.gui.sumMhz = 0;
+        }
+
+        ctx.gui.sumIps += (gb.cpu.instructions - ctx.gui.prevInstructions) / deltaTime;
+        ctx.gui.sumMhz += (gb.cpu.cycles - ctx.gui.prevCycles) / deltaTime;
+        ctx.gui.prevInstructions = gb.cpu.instructions;
+        ctx.gui.prevCycles = gb.cpu.cycles;
+
         ImGui::Text("Instructions: %zu", gb.cpu.instructions);
+        ImGui::SameLineText("(%.02f kIPS)", ctx.gui.ips / 1000);
         ImGui::Text("T-cycles: %zu", gb.cpu.cycles);
+        ImGui::SameLineText("(%.03f MHz)", ctx.gui.mhz / 1000000);
     }
 }
 
@@ -1026,7 +1046,7 @@ ALWAYS_INLINE static void drawDisassemblyWindow(Context& ctx)
 
     if (ctx.gb.state == GameBoy::State::Running)
     {
-        ImGui::Text("Emulation is running");
+        ImGui::Text("--");
         return;
     }
 
@@ -1064,6 +1084,64 @@ ALWAYS_INLINE static void drawDisassemblyWindow(Context& ctx)
     }
 }
 
+#define MEMORY_RANGE(RANGE) \
+    case memory::Map::RANGE.start ... memory::Map::RANGE.end - 1
+
+static void drawCallstackEntry(Context& ctx, int id, uint16_t bank, uint16_t addr)
+{
+    const Symbol* sym = nullptr;
+    char buf[32];
+    buf[0] = 0;
+    switch (addr)
+    {
+        MEMORY_RANGE(BOOT_ROM):
+            if (ctx.cpu.mem.isBootRomEnabled())
+            {
+                sprintf(buf, "BOOTROM ");
+                break;
+            }
+            [[fallthrough]];
+
+        MEMORY_RANGE(ROM):
+            if (addr < 0x4000)
+            {
+                sprintf(buf, "ROM #00:");
+                sym = ctx.symbols[addr];
+            }
+            else
+            {
+                sprintf(buf, "ROM #%02u:", bank + 1);
+                sym = ctx.symbols[bank + 1, addr];
+            }
+            break;
+
+        MEMORY_RANGE(HRAM):
+            sprintf(buf, "HRAM    ");
+            sym = ctx.symbols[addr];
+            break;
+    }
+    ImGui::Text("%- 4i [%s%04x] %s", id, buf, addr, sym ? sym->name.c_str() : "??");
+}
+
+ALWAYS_INLINE static void drawCallstackWindow(Context& ctx)
+{
+    CREATE_WINDOW("Callstack", ctx.gui.callstackWindow);
+
+    if (ctx.gb.state == GameBoy::State::Running)
+    {
+        ImGui::Text("--");
+        return;
+    }
+
+    int id = 0;
+    drawCallstackEntry(ctx, id++, ctx.gb.cartridge.getRomBank(), ctx.cpu.pc);
+    for (int i = ctx.cpu.callstack.index - 1; i >= 0; --i)
+    {
+        auto& entry = ctx.cpu.callstack.data[i];
+        drawCallstackEntry(ctx, id++, entry.romBank, entry.ret);
+    }
+}
+
 void frame(unsigned int gameTextureId, int fps)
 {
     const auto dockspaceId = ImGui::GetID("vgb dockspace");
@@ -1086,6 +1164,7 @@ void frame(unsigned int gameTextureId, int fps)
     drawLogWindow(ctx);
     drawEmulationWindow(ctx);
     drawDisassemblyWindow(ctx);
+    drawCallstackWindow(ctx);
 
     if (ctx.gui.demoWindow)
     {

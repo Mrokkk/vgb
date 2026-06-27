@@ -29,7 +29,6 @@ Cartridge::Cartridge()
     , mBanks(0)
     , mBank(0)
 {
-
 }
 
 Cartridge::~Cartridge()
@@ -38,6 +37,23 @@ Cartridge::~Cartridge()
     {
         delete [] mRam;
     }
+}
+
+ALWAYS_INLINE static uint32_t romSize(const CartridgeHeader* header)
+{
+    return 32 * KiB * (1 << header->romSize);
+}
+
+ALWAYS_INLINE static uint32_t ramSize(const CartridgeHeader* header)
+{
+    switch (header->ramSize)
+    {
+        case 2: return 8 * KiB;
+        case 3: return 32 * KiB;
+        case 4: return 128 * KiB;
+        case 5: return 64 * KiB;
+    }
+    return 0;
 }
 
 static void copyTitle(const char* from, char* to)
@@ -62,8 +78,8 @@ void Cartridge::initialize(void* rom, void* ram)
         Serializator::removeData(mRam);
     }
     mRom     = static_cast<uint8_t*>(rom);
-    mRomSize = romSize();
-    mRamSize = ramSize();
+    mRomSize = romSize(mHeader);
+    mRamSize = ramSize(mHeader);
     if (ram)
     {
         mRam = static_cast<uint8_t*>(ram);

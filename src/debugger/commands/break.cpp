@@ -11,15 +11,38 @@ DEFINE_AND_REGISTER_COMMAND(break)
 {
     EXECUTOR()
     {
-        static uint32_t id = 1;
-        auto address = GET_ARGUMENT(0, Integer);
-
         auto& ctx = GET_USER_DATA(Context);
+
+        static uint32_t id = 1;
+        long address = 0;
+
+        if (ARGC() == 0)
+        {
+            for (const auto& [_, breakpoint] : ctx.breakpoints)
+            {
+                ctx.console.writeLine("Breakpoint {} at {:#04x}", breakpoint.id, breakpoint.address);
+            }
+            return 0;
+        }
+
+        if (args[0].isString())
+        {
+            const auto& symbolName = *args[0].getString();
+            auto symbol = ctx.symbols[symbolName];
+            if (not symbol)
+            {
+                return std::unexpected(fmt::format_to_string("No such symbol: {}", symbolName));
+            }
+            address = symbol->start;
+        }
+        else
+        {
+            address = GET_ARGUMENT(0, Integer);
+        }
 
         if (address < 0 or address > 0xffff)
         {
-            ctx.console.writeLine("Invalid address: {:x}", address);
-            return 1;
+            return std::unexpected(fmt::format_to_string("Invalid address: {:x}", address));
         }
 
         auto newId = id++;

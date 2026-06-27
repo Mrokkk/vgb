@@ -13,6 +13,7 @@ if (not ({{ condition }}))
 {%- endif %}
 cpu.sp -= 2;
 cpu.mem.store16(cpu.sp, cpu.pc);
+cpu.pushStackFrame();
 cpu.pc = {{ addr }};
 """
 

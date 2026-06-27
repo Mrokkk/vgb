@@ -155,7 +155,7 @@ void GameBoy::saveRam()
 {
     if (cartridge.getRam() and cartridge.isRamDirty())
     {
-        auto res = sys::saveToFile(config.cartridgeRamPath.c_str(), cartridge.getRam(), cartridge.ramSize());
+        auto res = sys::saveToFile(config.cartridgeRamPath.c_str(), cartridge.getRam(), cartridge.getRamSize());
 
         if (not res)
         {
