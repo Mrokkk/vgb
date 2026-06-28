@@ -1,4 +1,4 @@
-#include "serializator.hpp"
+#include "save_serializer.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -81,11 +81,11 @@ struct DataEntry final
     size_t size;
 };
 
-struct SerializatorRegistry final : utils::Immobile
+struct Registry final : utils::Immobile
 {
-    static SerializatorRegistry& instance()
+    static Registry& instance()
     {
-        static SerializatorRegistry s;
+        static Registry s;
         return s;
     }
 
@@ -116,7 +116,7 @@ struct SerializatorRegistry final : utils::Immobile
     }
 
 private:
-    SerializatorRegistry()
+    Registry()
         : mSize(0)
     {
     }
@@ -128,19 +128,19 @@ private:
 
 }  // namespace
 
-void Serializator::registerEvents(std::vector<Event*> events)
+void SaveSerializer::registerEvents(std::vector<Event*> events)
 {
-    SerializatorRegistry::instance().addEvents(std::move(events));
+    Registry::instance().addEvents(std::move(events));
 }
 
-void Serializator::registerData(void* data, size_t size)
+void SaveSerializer::registerData(void* data, size_t size)
 {
-    SerializatorRegistry::instance().addDataEntry(DataEntry{.data = data, .size = size});
+    Registry::instance().addDataEntry(DataEntry{.data = data, .size = size});
 }
 
-bool Serializator::removeData(void* data)
+bool SaveSerializer::removeData(void* data)
 {
-    auto& entries = SerializatorRegistry::instance().getDataEntries();
+    auto& entries = Registry::instance().getDataEntries();
     for (auto it = entries.begin(); it != entries.end(); ++it)
     {
         if (it->data == data)
@@ -152,14 +152,14 @@ bool Serializator::removeData(void* data)
     return false;
 }
 
-size_t Serializator::getDataSize()
+size_t SaveSerializer::getDataSize()
 {
-    return SerializatorRegistry::instance().getSize() + sizeof(HEADER);
+    return Registry::instance().getSize() + sizeof(HEADER);
 }
 
-SerializationResult Serializator::serialize()
+SerializationResult SaveSerializer::serialize()
 {
-    auto& registry = SerializatorRegistry::instance();
+    auto& registry = Registry::instance();
     Writer writer(getDataSize());
     writer.write(HEADER, sizeof(HEADER));
     for (const auto& entry : registry.getDataEntries())
@@ -174,12 +174,12 @@ SerializationResult Serializator::serialize()
     return writer.release();
 }
 
-DeserializationResult Serializator::deserialize(const void* data, size_t size)
+DeserializationResult SaveSerializer::deserialize(const void* data, size_t size)
 {
     Reader reader(data, size);
     char header[sizeof(HEADER)]{};
 
-    auto& registry = SerializatorRegistry::instance();
+    auto& registry = Registry::instance();
 
     if (reader.read(header, sizeof(HEADER))) [[unlikely]]
     {

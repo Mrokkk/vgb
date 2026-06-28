@@ -3,9 +3,12 @@
 #include <ctime>
 #include <mutex>
 
-#include "logger_reader.hpp"
+#include "core/logger_reader.hpp"
 #include "utils/ring_buffer.hpp"
 #include "utils/source_location.hpp"
+
+namespace core
+{
 
 using LogRingBuffer = utils::RingBuffer<LogEntry>;
 
@@ -70,3 +73,5 @@ void LoggerReader::onLog(OnLogCallback callback)
 {
     onLogCallback = std::move(callback);
 }
+
+}  // namespace core

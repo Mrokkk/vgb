@@ -2,8 +2,11 @@
 
 #include <functional>
 
-#include "logger.hpp"
+#include "core/logger.hpp"
 #include "utils/function_ref.hpp"
+
+namespace core
+{
 
 struct LoggerReader final
 {
@@ -13,3 +16,5 @@ struct LoggerReader final
 };
 
 constexpr static LoggerReader loggerReader;
+
+}  // namespace core

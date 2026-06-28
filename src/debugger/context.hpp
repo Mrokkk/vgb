@@ -7,12 +7,13 @@
 
 #include <fmt/fmt_ext.h>
 
+#include "core/ini_serializer.hpp"
+#include "core/severity.hpp"
 #include "cpu/fwd.hpp"
 #include "debugger/console.hpp"
 #include "debugger/games/game.hpp"
 #include "debugger/symbols_map.hpp"
 #include "game_boy.hpp"
-#include "severity.hpp"
 
 namespace debugger
 {
@@ -25,28 +26,30 @@ struct Breakpoint final
 
 struct Message final
 {
-    const Severity    severity;
-    unsigned          time;
-    const std::string text;
+    const core::Severity severity;
+    unsigned             time;
+    const std::string    text;
 };
 
 struct GUI final
 {
-    bool        commandEntered;
-    bool        emulationWindow;
-    bool        cartridgeWindow;
-    bool        cpuWindow;
-    bool        consoleWindow;
-    bool        mapWindow;
-    bool        showScxScy;
-    bool        styleEditorWindow;
-    bool        ioWindow;
-    bool        gameWindow;
-    bool        focusCmdLine;
-    bool        demoWindow;
-    bool        logWindow;
-    bool        disassemblyWindow;
-    bool        callstackWindow;
+    INI_SAVED(bool, commandEntered);
+    INI_SAVED(bool, emulationWindow);
+    INI_SAVED(bool, cartridgeWindow);
+    INI_SAVED(bool, cpuWindow);
+    INI_SAVED(bool, consoleWindow);
+    INI_SAVED(bool, mapWindow);
+    INI_SAVED(bool, showScxScy);
+    INI_SAVED(bool, styleEditorWindow);
+    INI_SAVED(bool, ioWindow);
+    INI_SAVED(bool, gameWindow);
+    INI_SAVED(bool, focusCmdLine);
+    INI_SAVED(bool, demoWindow);
+    INI_SAVED(bool, logWindow);
+    INI_SAVED(bool, disassemblyWindow);
+    INI_SAVED(bool, callstackWindow);
+    INI_SAVED(uint32_t, messageTime);
+    INI_SAVED(uint32_t, messageFadeOutTime);
     size_t      counter;
     float       ips;
     float       mhz;
@@ -54,8 +57,6 @@ struct GUI final
     float       sumMhz;
     uint64_t    prevInstructions;
     uint64_t    prevCycles;
-    unsigned    messageTime;
-    unsigned    messageFadeOutTime;
 
     char lineBuffer[256];
     char addrBuffer[32];

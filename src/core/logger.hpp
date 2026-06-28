@@ -10,6 +10,9 @@
 #include "utils/inline.hpp"
 #include "utils/source_location.hpp"
 
+namespace core
+{
+
 struct LogEntry final
 {
     Severity              severity;
@@ -104,3 +107,5 @@ private:
 };
 
 constexpr static Logger logger;
+
+}  // namespace core

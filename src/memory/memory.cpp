@@ -2,12 +2,10 @@
 
 #include <cstring>
 
-#include <fmt/base.h>
-
 #include "cpu/sm83.hpp"
 #include "game_boy.hpp"
 #include "memory/memory_map.hpp"
-#include "serializator.hpp"
+#include "save_serializer.hpp"
 #include "utils/byte_order.hpp"
 
 namespace memory
@@ -24,12 +22,12 @@ Memory::Memory()
 {
     vram.bank = 0;
     bankedWorkRam.bank = 0;
-    Serializator::registerData(vram);
-    Serializator::registerData(baseWorkRam);
-    Serializator::registerData(bankedWorkRam);
-    Serializator::registerData(oam);
-    Serializator::registerData(highRam);
-    Serializator::registerData(mBootRomEnabled);
+    SaveSerializer::registerData(vram);
+    SaveSerializer::registerData(baseWorkRam);
+    SaveSerializer::registerData(bankedWorkRam);
+    SaveSerializer::registerData(oam);
+    SaveSerializer::registerData(highRam);
+    SaveSerializer::registerData(mBootRomEnabled);
 }
 
 Memory::~Memory() = default;

@@ -9,13 +9,13 @@
 #include "apu.hpp"
 #include "component.hpp"
 #include "config.hpp"
+#include "core/logger.hpp"
 #include "cpu/sm83.hpp"
 #include "joypad.hpp"
-#include "logger.hpp"
 #include "ppu.hpp"
 #include "renderer.hpp"
 #include "save_manager.hpp"
-#include "serializator.hpp"
+#include "save_serializer.hpp"
 #include "sys/system.hpp"
 #include "timer.hpp"
 #include "utils/unique_ptr.hpp"
@@ -42,7 +42,7 @@ GameBoy::GameBoy()
     , frameNumber(0)
     , inputEnabled(true)
 {
-    Serializator::registerData(frameNumber);
+    SaveSerializer::registerData(frameNumber);
 
     for (auto& component : components)
     {
@@ -165,7 +165,7 @@ void GameBoy::saveRam()
 
         cartridge.setRamNotDirty();
 
-        logger.info().write("saved RAM to {}", config.cartridgeRamPath);
+        core::logger.info().write("saved RAM to {}", config.cartridgeRamPath);
     }
 }
 

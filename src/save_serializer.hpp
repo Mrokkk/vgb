@@ -15,7 +15,7 @@ using SerializedData = std::vector<uint8_t>;
 using SerializationResult = std::expected<SerializedData, std::string>;
 using DeserializationResult = std::expected<std::nullptr_t, std::string>;
 
-struct Serializator
+struct SaveSerializer
 {
     template <typename T>
     requires (std::is_pod_v<T> and not std::is_pointer_v<T> and not std::is_array_v<T>)

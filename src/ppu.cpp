@@ -12,7 +12,7 @@
 #include "fwd.hpp"
 #include "game_boy.hpp"
 #include "memory/generic.hpp"
-#include "serializator.hpp"
+#include "save_serializer.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
 
@@ -199,10 +199,10 @@ Ppu::Ppu(const Config& config)
         .callback = [this](size_t){ mode3Callback(); }
     }))
 {
-    Serializator::registerData(io.data);
-    Serializator::registerData(bgPalette);
-    Serializator::registerData(objPalette);
-    Serializator::registerEvents({&dma, &mode0, &mode1, &mode2, &mode3});
+    SaveSerializer::registerData(io.data);
+    SaveSerializer::registerData(bgPalette);
+    SaveSerializer::registerData(objPalette);
+    SaveSerializer::registerEvents({&dma, &mode0, &mode1, &mode2, &mode3});
     initPpu();
 }
 

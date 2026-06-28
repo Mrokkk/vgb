@@ -8,11 +8,11 @@
 #include <rlImGui.h>
 
 #include "../renderer.hpp"
+#include "core/logger.hpp"
 #include "debugger/main.hpp"
 #include "game_boy.hpp"
-#include "logger.hpp"
 #include "ppu.hpp"
-#include "serializator.hpp"
+#include "save_serializer.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
 
@@ -57,19 +57,19 @@ static void raylibLogFormat(int msgType, const char* text, va_list args)
     char buf[256];
     char* it = buf;
 
-    Severity severity;
+    core::Severity severity;
 
     switch (msgType)
     {
-        case LOG_INFO:    severity = Severity::info; break;
-        case LOG_ERROR:   severity = Severity::error; break;
-        case LOG_WARNING: severity = Severity::warning; break;
-        default:          severity = Severity::debug; break;
+        case LOG_INFO:    severity = core::Severity::info; break;
+        case LOG_ERROR:   severity = core::Severity::error; break;
+        case LOG_WARNING: severity = core::Severity::warning; break;
+        default:          severity = core::Severity::debug; break;
     }
 
     it += vsprintf(it, text, args);
 
-    logger.log(severity).buffer() = buf;
+    core::logger.log(severity).buffer() = buf;
 }
 
 RaylibRenderer::RaylibRenderer()
@@ -94,7 +94,7 @@ RaylibRenderer::RaylibRenderer()
         rlImGuiSetup(true);
     }
 
-    Serializator::registerData(mScreenImage.data, mScreenImage.height * mScreenImage.width * 4);
+    SaveSerializer::registerData(mScreenImage.data, mScreenImage.height * mScreenImage.width * 4);
 }
 
 RaylibRenderer::~RaylibRenderer()

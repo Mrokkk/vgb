@@ -7,7 +7,7 @@
 #include "cpu/sm83.hpp"
 #include "game_boy.hpp"
 #include "input.hpp"
-#include "serializator.hpp"
+#include "save_serializer.hpp"
 #include "utils/unique_ptr.hpp"
 
 struct Joypad : Component
@@ -82,9 +82,9 @@ Joypad::Joypad()
             update(input);
         });
 
-    Serializator::registerData(buttons);
-    Serializator::registerData(directional);
-    Serializator::registerData(joyp);
+    SaveSerializer::registerData(buttons);
+    SaveSerializer::registerData(directional);
+    SaveSerializer::registerData(joyp);
 }
 
 void Joypad::reset()

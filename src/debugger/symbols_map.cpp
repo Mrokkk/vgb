@@ -5,12 +5,13 @@
 #include <filesystem>
 #include <vector>
 
+#include <fmt/base.h>
+
+#include "core/logger.hpp"
+#include "core/thread.hpp"
 #include "debugger/context.hpp"
-#include "fmt/base.h"
 #include "game_boy.hpp"
-#include "logger.hpp"
 #include "sys/system.hpp"
-#include "thread.hpp"
 #include "utils/time.hpp"
 
 namespace debugger
@@ -40,7 +41,7 @@ SymbolsMap::~SymbolsMap()
 
 void SymbolsMap::initialize(Context& ctx)
 {
-    async([this, &ctx]{ loadSymbols(ctx); });
+    core::async([this, &ctx]{ loadSymbols(ctx); });
 }
 
 const Symbol* SymbolsMap::operator[](uint16_t address) const
@@ -107,7 +108,7 @@ void SymbolsMap::loadSymbols(Context& ctx)
 
     if (not file)
     {
-        logger.info().write("No debug symbols for {}", romPath);
+        core::logger.info().write("No debug symbols for {}", romPath);
         return;
     }
 
@@ -184,7 +185,7 @@ void SymbolsMap::loadSymbols(Context& ctx)
         prevSymbol->size = 0xffff - prevSymbol->start;
     }
 
-    logger.notice().write("Loaded {} symbols for {}; took {:.2f} s", impl->symbols.size(), romPath, t.elapsed());
+    core::logger.notice().write("Loaded {} symbols for {}; took {:.2f} s", impl->symbols.size(), romPath, t.elapsed());
 
     mPimpl = impl;
 }

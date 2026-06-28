@@ -51,6 +51,9 @@ set(LIBRARIES
 add_library(emulator OBJECT
 
     src/apu.cpp
+    src/core/ini_serializer.cpp
+    src/core/logger.cpp
+    src/core/thread.cpp
     src/cpu/isa/decoder.cpp
     src/cpu/isa/instruction_set.cpp
     src/cpu/isa/opcode.cpp
@@ -82,7 +85,6 @@ add_library(emulator OBJECT
     src/interpreter/lexer.cpp
     src/interpreter/lexer_printers.cpp
     src/joypad.cpp
-    src/logger.cpp
     src/memory/cartridge.cpp
     src/memory/memory.cpp
     src/memory/printers.cpp
@@ -91,9 +93,8 @@ add_library(emulator OBJECT
     src/raylib/renderer.cpp
     src/renderer.cpp
     src/save_manager.cpp
-    src/serializator.cpp
+    src/save_serializer.cpp
     src/sys/posix.cpp
-    src/thread.cpp
     src/timer.cpp
     src/utils/string.cpp
     src/utils/time.cpp

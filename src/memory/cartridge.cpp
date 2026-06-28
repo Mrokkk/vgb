@@ -4,7 +4,7 @@
 
 #include "game_boy.hpp"
 #include "memory/memory_map.hpp"
-#include "serializator.hpp"
+#include "save_serializer.hpp"
 
 namespace memory
 {
@@ -75,7 +75,7 @@ void Cartridge::initialize(void* rom, void* ram)
 {
     if (mRam)
     {
-        Serializator::removeData(mRam);
+        SaveSerializer::removeData(mRam);
     }
     mRom     = static_cast<uint8_t*>(rom);
     mRomSize = romSize(mHeader);
@@ -97,12 +97,12 @@ void Cartridge::initialize(void* rom, void* ram)
 
     if (not mDataRegistered)
     {
-        Serializator::registerData(mRamEnabled);
-        Serializator::registerData(mBank);
-        Serializator::registerData(mRamBank);
+        SaveSerializer::registerData(mRamEnabled);
+        SaveSerializer::registerData(mBank);
+        SaveSerializer::registerData(mRamBank);
         if (mRam)
         {
-            Serializator::registerData(mRam, mRamSize);
+            SaveSerializer::registerData(mRam, mRamSize);
         }
         mDataRegistered = true;
     }

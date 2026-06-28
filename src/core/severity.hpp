@@ -1,5 +1,8 @@
 #pragma once
 
+namespace core
+{
+
 enum Severity : char
 {
     debug,
@@ -8,3 +11,5 @@ enum Severity : char
     warning,
     error,
 };
+
+}  // namespace core

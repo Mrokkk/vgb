@@ -13,17 +13,18 @@
 #include <imgui_internal.h>
 #include <imgui_memory_editor/imgui_memory_editor.h>
 
+#include "core/ini_serializer.hpp"
+#include "core/logger.hpp"
+#include "core/logger_reader.hpp"
+#include "core/severity.hpp"
 #include "cpu/isa/decoder.hpp"
 #include "cpu/sm83.hpp"
 #include "debugger/context.hpp"
 #include "game_boy.hpp"
 #include "interpreter/interpreter.hpp"
-#include "logger.hpp"
-#include "logger_reader.hpp"
 #include "memory/memory_map.hpp"
 #include "ppu.hpp"
 #include "save_manager.hpp"
-#include "severity.hpp"
 #include "sys/system.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
@@ -370,9 +371,9 @@ ALWAYS_INLINE static ImVec2 scaleToRatio(const ImVec2& vec, int ratioX, int rati
     return res;
 }
 
-static void onLog(Context& ctx, const LogEntry& entry)
+static void onLog(Context& ctx, const core::LogEntry& entry)
 {
-    if (static_cast<int>(entry.severity) > static_cast<int>(Severity::info))
+    if (static_cast<int>(entry.severity) > static_cast<int>(core::Severity::info))
     {
         ctx.gui.messages.push_back(Message{
             .severity = entry.severity,
@@ -413,7 +414,7 @@ static void execute(Context&, std::string command)
 
     if (not result) [[unlikely]]
     {
-        logger.error().buffer() = std::move(result.error());
+        core::logger.error().buffer() = std::move(result.error());
     }
 }
 
@@ -422,59 +423,21 @@ static void* openIni(ImGuiContext*, ImGuiSettingsHandler* s, const char*)
     return s->UserData;
 }
 
-#define READ_BOOL(BOOL) \
-    if (sscanf(line, #BOOL "=%i", &tmp) == 1) \
-    { \
-        gui.BOOL = tmp; \
-        return; \
-    }
-
-static void readIniLine(ImGuiContext*, ImGuiSettingsHandler* s, void*, const char* line)
+static void readIniLine(ImGuiContext*, ImGuiSettingsHandler*, void*, const char* line)
 {
-    int tmp;
-    auto& gui = *static_cast<GUI*>(s->UserData);
-    READ_BOOL(emulationWindow);
-    READ_BOOL(cartridgeWindow);
-    READ_BOOL(cpuWindow);
-    READ_BOOL(consoleWindow);
-    READ_BOOL(mapWindow);
-    READ_BOOL(showScxScy);
-    READ_BOOL(styleEditorWindow);
-    READ_BOOL(ioWindow);
-    READ_BOOL(gameWindow);
-    READ_BOOL(demoWindow);
-    READ_BOOL(logWindow);
-    READ_BOOL(disassemblyWindow);
-    READ_BOOL(callstackWindow);
-    if (sscanf(line, "memEditorWindow=%i", &tmp) == 1)
+    auto result = core::IniSerializer::deserializeLine(line);
+    if (not result)
     {
-        memEditor->Open = tmp;
-        return;
+        core::logger.error().write("INI error: {}", result.error());
     }
 }
 
-#define WRITE_BOOL(BOOL) \
-    buf->appendf(#BOOL "=%i\n", gui.BOOL)
-
 static void writeIni(ImGuiContext*, ImGuiSettingsHandler* s, ImGuiTextBuffer* buf)
 {
-    auto& gui = *static_cast<GUI*>(s->UserData);
     buf->reserve(200);
     buf->appendf("[%s][Data]\n", s->TypeName);
-    WRITE_BOOL(emulationWindow);
-    WRITE_BOOL(cartridgeWindow);
-    WRITE_BOOL(cpuWindow);
-    WRITE_BOOL(consoleWindow);
-    WRITE_BOOL(mapWindow);
-    WRITE_BOOL(showScxScy);
-    WRITE_BOOL(styleEditorWindow);
-    WRITE_BOOL(ioWindow);
-    WRITE_BOOL(gameWindow);
-    WRITE_BOOL(demoWindow);
-    WRITE_BOOL(logWindow);
-    WRITE_BOOL(disassemblyWindow);
-    WRITE_BOOL(callstackWindow);
-    buf->appendf("memEditorWindow=%i\n", memEditor->Open);
+    auto str = core::IniSerializer::serialize();
+    buf->append(str.c_str(), str.c_str() + str.size());
 }
 
 void initImGui(Context& ctx)
@@ -489,6 +452,8 @@ void initImGui(Context& ctx)
     memEditor->OptShowOptions  = false;
     memEditor->OptUpperCaseHex = false;
     memEditor->Open            = false;
+
+    core::IniSerializer::registerData("memEditorWindow", memEditor->Open);
 
     {
         std::filesystem::path iniPath(sys::getConfigDir());
@@ -518,13 +483,13 @@ void initImGui(Context& ctx)
     style.ScrollbarRounding = 5.0f;
 
     auto logCallback =
-        [&ctx](const LogEntry& e)
+        [&ctx](const core::LogEntry& e)
         {
             onLog(ctx, e);
         };
 
-    loggerReader.forEachLogEntry(logCallback);
-    loggerReader.onLog(std::move(logCallback));
+    core::loggerReader.forEachLogEntry(logCallback);
+    core::loggerReader.onLog(std::move(logCallback));
 }
 
 void deinitImGui(Context& ctx)
@@ -630,7 +595,7 @@ ALWAYS_INLINE static void drawLcd(Context&, unsigned int gameTextureId, int fps)
     { \
         return; \
     } \
-    auto window = ImGui::CreateWindow(NAME, &VARIABLE); \
+    auto window = ImGui::CreateWindow(NAME, &VARIABLE.get()); \
     if (not window) [[unlikely]] \
     { \
         return; \
@@ -853,7 +818,7 @@ ALWAYS_INLINE static void drawConsoleWindow(Context& ctx)
 ALWAYS_INLINE static void drawMapWindow(Context& ctx)
 {
     CREATE_WINDOW("Map", ctx.gui.mapWindow);
-    ImGui::Checkbox("Show SCX/SCY window", &ctx.gui.showScxScy);
+    ImGui::Checkbox("Show SCX/SCY window", &ctx.gui.showScxScy.get());
     const auto viewportSize = ImGui::GetContentRegionAvail();
     const auto imageSize = scaleToRatio(viewportSize, 1, 1);
     ImGui::SetCursorPos((viewportSize - imageSize) * 0.5 + ImGui::GetCursorPos());
@@ -973,7 +938,7 @@ ALWAYS_INLINE static void drawLogWindow(Context& ctx)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{0, 0});
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4{0, 0, 0, 0});
 
-    if (auto window = ImGui::CreateWindow("Log", &ctx.gui.logWindow)) [[likely]]
+    if (auto window = ImGui::CreateWindow("Log", &ctx.gui.logWindow.get())) [[likely]]
     {
         ImGui::InputTextMultiline("##Log", buffer.data(), buffer.size() + 1, ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
     }
@@ -1180,10 +1145,10 @@ static void drawMessage(Context& ctx, Message& msg, ImGuiIO& io, int i)
 
     switch (msg.severity)
     {
-        case Severity::warning:
+        case core::Severity::warning:
             color = ImGui::ColorFromHex(0xffff00);
             break;
-        case Severity::error:
+        case core::Severity::error:
             color = ImGui::ColorFromHex(0xff0000);
             break;
         default:
@@ -1234,6 +1199,8 @@ static void drawMessages(Context& ctx)
     auto& io = ImGui::GetIO();
     int i = 0;
 
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4{0.1, 0.1, 0.1, 0.8});
+
     for (auto it = messages.begin(); it != messages.end(); ++i)
     {
         auto& msg = *it;
@@ -1248,6 +1215,8 @@ static void drawMessages(Context& ctx)
 
         ++it;
     }
+
+    ImGui::PopStyleColor();
 }
 
 void frame(unsigned int gameTextureId, int fps)
@@ -1276,7 +1245,7 @@ void frame(unsigned int gameTextureId, int fps)
 
     if (ctx.gui.demoWindow)
     {
-        ImGui::ShowDemoWindow(&ctx.gui.demoWindow);
+        ImGui::ShowDemoWindow(&ctx.gui.demoWindow.get());
     }
 
     drawMessages(ctx);
