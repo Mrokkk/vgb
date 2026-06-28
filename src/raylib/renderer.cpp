@@ -64,8 +64,7 @@ static void raylibLogFormat(int msgType, const char* text, va_list args)
         case LOG_INFO:    severity = Severity::info; break;
         case LOG_ERROR:   severity = Severity::error; break;
         case LOG_WARNING: severity = Severity::warning; break;
-        case LOG_DEBUG:   severity = Severity::debug; break;
-        default:          severity = Severity::info; break;
+        default:          severity = Severity::debug; break;
     }
 
     it += vsprintf(it, text, args);

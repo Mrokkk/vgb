@@ -184,7 +184,7 @@ void SymbolsMap::loadSymbols(Context& ctx)
         prevSymbol->size = 0xffff - prevSymbol->start;
     }
 
-    logger.info().write("Loaded {} symbols for {}; took {:.2f} s", impl->symbols.size(), romPath, t.elapsed());
+    logger.notice().write("Loaded {} symbols for {}; took {:.2f} s", impl->symbols.size(), romPath, t.elapsed());
 
     mPimpl = impl;
 }

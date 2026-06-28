@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <list>
 #include <map>
 #include <string>
 
@@ -11,17 +12,25 @@
 #include "debugger/games/game.hpp"
 #include "debugger/symbols_map.hpp"
 #include "game_boy.hpp"
+#include "severity.hpp"
 
 namespace debugger
 {
 
-struct Breakpoint
+struct Breakpoint final
 {
     uint16_t address;
     uint32_t id;
 };
 
-struct GUI
+struct Message final
+{
+    const Severity    severity;
+    unsigned          time;
+    const std::string text;
+};
+
+struct GUI final
 {
     bool        commandEntered;
     bool        emulationWindow;
@@ -45,15 +54,19 @@ struct GUI
     float       sumMhz;
     uint64_t    prevInstructions;
     uint64_t    prevCycles;
+    unsigned    messageTime;
+    unsigned    messageFadeOutTime;
 
     char lineBuffer[256];
     char addrBuffer[32];
     char ioFilterBuffer[32];
 
     std::string iniPath;
+
+    std::list<Message> messages;
 };
 
-struct Context
+struct Context final
 {
     GameBoy&    gb;
     cpu::SM83&  cpu;

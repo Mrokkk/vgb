@@ -92,7 +92,7 @@ void SaveManager::quickSave()
         return;
     }
 
-    logger.info().write("saved {} with {} bytes (compressed from {})", save.native(), compressedSize, serialized->size());
+    logger.notice().write("saved {} with {} bytes (compressed from {})", save.native(), compressedSize, serialized->size());
 }
 
 void SaveManager::quickLoad()
@@ -129,7 +129,7 @@ void SaveManager::quickLoad()
                 return;
             }
 
-            logger.info(utils::SourceLocation::custom(func)).write("loaded {} with {} bytes", save.native(), uncompressedSize);
+            logger.notice(utils::SourceLocation::custom(func)).write("loaded {} with {} bytes", save.native(), uncompressedSize);
         });
 }
 

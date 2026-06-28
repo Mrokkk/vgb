@@ -23,6 +23,7 @@
 #include "memory/memory_map.hpp"
 #include "ppu.hpp"
 #include "save_manager.hpp"
+#include "severity.hpp"
 #include "sys/system.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
@@ -343,6 +344,8 @@ IoEntry ioEntries[] = {
 };
 
 static utils::UniquePtr<MemoryEditor> memEditor;
+static std::string buffer;
+static std::vector<uint32_t> offsets;
 
 static ImU8 readMemory(const ImU8*, size_t addr, void*)
 {
@@ -367,11 +370,17 @@ ALWAYS_INLINE static ImVec2 scaleToRatio(const ImVec2& vec, int ratioX, int rati
     return res;
 }
 
-static std::string buffer;
-static std::vector<uint32_t> offsets;
-
-static void onLog(const LogEntry& entry)
+static void onLog(Context& ctx, const LogEntry& entry)
 {
+    if (static_cast<int>(entry.severity) > static_cast<int>(Severity::info))
+    {
+        ctx.gui.messages.push_back(Message{
+            .severity = entry.severity,
+            .time = 0,
+            .text = entry.message,
+        });
+    }
+
     char timeBuf[32];
 
     struct tm tmInfo;
@@ -383,22 +392,32 @@ static void onLog(const LogEntry& entry)
 
     if (entry.header)
     {
-        buffer += (fmt::format_to_string("[{}] [{}] {}: {}\n",
+        buffer += fmt::format_to_string("[{}] [{}] {}: {}\n",
             timeBuf,
             entry.header,
             entry.location.func,
-            entry.message));
+            entry.message);
     }
     else
     {
-        buffer += (fmt::format_to_string("[{}] {}: {}\n",
+        buffer += fmt::format_to_string("[{}] {}: {}\n",
             timeBuf,
             entry.location.func,
-            entry.message));
+            entry.message);
     }
 }
 
-void* openIni(ImGuiContext*, ImGuiSettingsHandler* s, const char*)
+static void execute(Context&, std::string command)
+{
+    auto result = interpreter::exectuteCommand(std::move(command));
+
+    if (not result) [[unlikely]]
+    {
+        logger.error().buffer() = std::move(result.error());
+    }
+}
+
+static void* openIni(ImGuiContext*, ImGuiSettingsHandler* s, const char*)
 {
     return s->UserData;
 }
@@ -460,7 +479,8 @@ static void writeIni(ImGuiContext*, ImGuiSettingsHandler* s, ImGuiTextBuffer* bu
 
 void initImGui(Context& ctx)
 {
-    memset(reinterpret_cast<void*>(&ctx.gui), 0, offsetof(GUI, iniPath));
+    ctx.gui.messageTime = 180;
+    ctx.gui.messageFadeOutTime = 60;
 
     memEditor = utils::makeUnique<MemoryEditor>();
     memEditor->ReadFn          = &readMemory;
@@ -477,8 +497,8 @@ void initImGui(Context& ctx)
     }
 
     ImGuiSettingsHandler iniHandler;
-    iniHandler.TypeName = "UserData";
-    iniHandler.TypeHash = ImHashStr("UserData");
+    iniHandler.TypeName = "GUI";
+    iniHandler.TypeHash = ImHashStr("GUI");
     iniHandler.ReadOpenFn = &openIni;
     iniHandler.ReadLineFn = &readIniLine;
     iniHandler.WriteAllFn = &writeIni;
@@ -497,13 +517,14 @@ void initImGui(Context& ctx)
     style.FrameRounding     = 5.0f;
     style.ScrollbarRounding = 5.0f;
 
-    loggerReader.forEachLogEntry(
-        [](const LogEntry& e)
+    auto logCallback =
+        [&ctx](const LogEntry& e)
         {
-            onLog(e);
-        });
+            onLog(ctx, e);
+        };
 
-    loggerReader.onLog(&onLog);
+    loggerReader.forEachLogEntry(logCallback);
+    loggerReader.onLog(std::move(logCallback));
 }
 
 void deinitImGui(Context& ctx)
@@ -993,10 +1014,15 @@ ALWAYS_INLINE static void drawEmulationWindow(Context& ctx)
 
         if (ImGui::SameLineButton("Reset"))
         {
-            gb.reset();
+            execute(ctx, "reset");
         }
 
         ImGui::SliderInt("Speed", reinterpret_cast<int*>(&gb.speedMultiplier), 1, 20);
+
+        if (ImGui::Button("Step"))
+        {
+            execute(ctx, "step");
+        }
     }
 
     ImGui::SeparatorText("Save RAM");
@@ -1046,7 +1072,7 @@ ALWAYS_INLINE static void drawDisassemblyWindow(Context& ctx)
 
     if (ctx.gb.state == GameBoy::State::Running)
     {
-        ImGui::Text("--");
+        ImGui::TextDisabled("--");
         return;
     }
 
@@ -1129,7 +1155,7 @@ ALWAYS_INLINE static void drawCallstackWindow(Context& ctx)
 
     if (ctx.gb.state == GameBoy::State::Running)
     {
-        ImGui::Text("--");
+        ImGui::TextDisabled("--");
         return;
     }
 
@@ -1139,6 +1165,88 @@ ALWAYS_INLINE static void drawCallstackWindow(Context& ctx)
     {
         auto& entry = ctx.cpu.callstack.data[i];
         drawCallstackEntry(ctx, id++, entry.romBank, entry.ret);
+    }
+}
+
+static void drawMessage(Context& ctx, Message& msg, ImGuiIO& io, int i)
+{
+    const auto textSize = ImGui::CalcTextSize(msg.text.c_str());
+
+    const ImVec2 pos(
+        io.DisplaySize.x - textSize.x - 2 * textSize.y,
+        io.DisplaySize.y - (3 + 3 * i) * textSize.y);
+
+    ImVec4 color;
+
+    switch (msg.severity)
+    {
+        case Severity::warning:
+            color = ImGui::ColorFromHex(0xffff00);
+            break;
+        case Severity::error:
+            color = ImGui::ColorFromHex(0xff0000);
+            break;
+        default:
+            color = ImGui::ColorFromHex(0xffffff);
+            break;
+    }
+
+    ImGui::PushStyleColor(ImGuiCol_Text, color);
+    ImGui::SetNextWindowPos(pos, ImGuiCond_None, ImVec2(0.0, 0.0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0);
+    ImGui::PushStyleVar(
+        ImGuiStyleVar_Alpha,
+        msg.time > ctx.gui.messageTime
+        ? 1.0f - (msg.time - ctx.gui.messageTime) / float(ctx.gui.messageFadeOutTime)
+        : 1.0f);
+
+    constexpr auto messageWindowFlags
+        = ImGuiWindowFlags_NoMove
+        | ImGuiWindowFlags_NoTitleBar
+        | ImGuiWindowFlags_NoNav
+        | ImGuiWindowFlags_NoFocusOnAppearing;
+
+    char windowName[32];
+    snprintf(windowName, sizeof(windowName), "Msg%u", i);
+
+    auto window = ImGui::CreateWindow(
+        windowName,
+        nullptr,
+        messageWindowFlags);
+
+    if (window)
+    {
+        ImGui::SetWindowSize(ImVec2(0, 0));
+        ImGui::Text("%s", msg.text.c_str());
+        if (ImGui::WasWindowClicked(ImGuiMouseButton_Left))
+        {
+            msg.time = ctx.gui.messageTime + ctx.gui.messageFadeOutTime;
+        }
+    }
+
+    ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor();
+}
+
+static void drawMessages(Context& ctx)
+{
+    auto& messages = ctx.gui.messages;
+    auto& io = ImGui::GetIO();
+    int i = 0;
+
+    for (auto it = messages.begin(); it != messages.end(); ++i)
+    {
+        auto& msg = *it;
+
+        if (msg.time++ >= ctx.gui.messageTime + ctx.gui.messageFadeOutTime)
+        {
+            messages.erase(it++);
+            continue;
+        }
+
+        drawMessage(ctx, msg, io, i);
+
+        ++it;
     }
 }
 
@@ -1170,6 +1278,8 @@ void frame(unsigned int gameTextureId, int fps)
     {
         ImGui::ShowDemoWindow(&ctx.gui.demoWindow);
     }
+
+    drawMessages(ctx);
 
     if (ImGui::IsKeyReleased(ImGuiKey_GraveAccent))
     {

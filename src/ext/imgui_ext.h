@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <utility>
 
 #include <imgui.h>
@@ -60,6 +61,21 @@ inline void SameLineText(const char* fmt, ...)
     va_start(args, fmt);
     TextV(fmt, args);
     va_end(args);
+}
+
+inline bool WasWindowClicked(int button)
+{
+    return ImGui::IsWindowFocused() and ImGui::IsMouseReleased(button);
+}
+
+constexpr ImVec4 ColorFromHex(uint32_t color, float alpha = 1.0f)
+{
+    return ImVec4{
+        ((color >> 16) & 0xff) / 255.0f,
+        ((color >>  8) & 0xff) / 255.0f,
+        ((color >>  0) & 0xff) / 255.0f,
+        alpha,
+    };
 }
 
 }  // namespace ImGui

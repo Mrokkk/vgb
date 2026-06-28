@@ -5,17 +5,10 @@
 
 #include <fmt/fmt_ext.h>
 
+#include "severity.hpp"
 #include "utils/immobile.hpp"
 #include "utils/inline.hpp"
 #include "utils/source_location.hpp"
-
-enum Severity : char
-{
-    debug,
-    info,
-    warning,
-    error,
-};
 
 struct LogEntry final
 {
@@ -75,6 +68,13 @@ struct Logger final
         const char* header = LOG_HEADER)
     {
         return log(Severity::info, header, loc);
+    }
+
+    constexpr static Flusher notice(
+        utils::SourceLocation loc = utils::SourceLocation::current(),
+        const char* header = LOG_HEADER)
+    {
+        return log(Severity::notice, header, loc);
     }
 
     constexpr static Flusher warning(

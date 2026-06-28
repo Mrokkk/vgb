@@ -91,7 +91,10 @@ void main(GameBoy& gb)
         .console = {
             .prompt = "(vgb)",
             .lines = {},
-        }
+        },
+        .gui{},
+        .symbols{},
+        .game{}
     };
 
     ctx.symbols.initialize(ctx);
