@@ -46,6 +46,7 @@ set(LIBRARIES
     rlimgui
     zlib
     backtrace
+    Fontconfig::Fontconfig
 )
 
 add_library(emulator OBJECT

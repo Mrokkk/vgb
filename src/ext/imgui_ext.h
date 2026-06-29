@@ -44,6 +44,10 @@ DEFINE_RAII_WRAPPER(MainMenuBar, ImGui::BeginMainMenuBar, ImGui::EndMainMenuBar,
 DEFINE_RAII_WRAPPER(Menu, ImGui::BeginMenu, ImGui::EndMenu, false)
 DEFINE_RAII_WRAPPER(Table, ImGui::BeginTable, ImGui::EndTable, false)
 DEFINE_RAII_WRAPPER(TreeNode, ImGui::TreeNode, ImGui::TreePop, false)
+DEFINE_RAII_WRAPPER(PopupModal, ImGui::BeginPopupModal, ImGui::EndPopup, false)
+DEFINE_RAII_WRAPPER(Combo, ImGui::BeginCombo, ImGui::EndCombo, false)
+DEFINE_RAII_WRAPPER(TabBar, ImGui::BeginTabBar, ImGui::EndTabBar, false)
+DEFINE_RAII_WRAPPER(TabItem, ImGui::BeginTabItem, ImGui::EndTabItem, false)
 
 template <typename ...Args>
 ALWAYS_INLINE bool SameLineButton(Args&&... args)

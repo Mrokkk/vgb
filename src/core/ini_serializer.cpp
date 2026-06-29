@@ -65,6 +65,9 @@ std::string IniSerializer::serialize()
             case Type::Uint32:
                 ss << *static_cast<const uint32_t*>(entry.data);
                 break;
+            case Type::Float:
+                ss << *static_cast<const float*>(entry.data);
+                break;
             case Type::String:
                 ss << *static_cast<const std::string*>(entry.data);
                 break;
@@ -97,10 +100,10 @@ DeserializationResult IniSerializer::deserializeLine(std::string_view line)
 
     auto& entry = it->second;
 
-#define CONVERT_INT(TYPE) \
+#define CONVERT_NUMBER(TYPE) \
     ({ \
         TYPE value{0}; \
-        auto result = std::from_chars(line.data(), line.data() + line.size(), value, 10); \
+        auto result = std::from_chars(line.data(), line.data() + line.size(), value); \
         if (result.ec == std::errc::invalid_argument) [[unlikely]] \
         { \
             return std::unexpected(fmt::format_to_string("Not an integer: {}", line)); \
@@ -116,7 +119,7 @@ DeserializationResult IniSerializer::deserializeLine(std::string_view line)
     {
         case Type::Bool:
         {
-            auto value = CONVERT_INT(uint8_t);
+            auto value = CONVERT_NUMBER(uint8_t);
             if (value != 0 and value != 1)
             {
                 return std::unexpected(fmt::format_to_string("Invalid value for bool: {}", line));
@@ -127,15 +130,22 @@ DeserializationResult IniSerializer::deserializeLine(std::string_view line)
 
         case Type::Int32:
         {
-            auto value = CONVERT_INT(int32_t);
+            auto value = CONVERT_NUMBER(int32_t);
             *static_cast<int32_t*>(entry.data) = value;
             break;
         }
 
         case Type::Uint32:
         {
-            auto value = CONVERT_INT(uint32_t);
+            auto value = CONVERT_NUMBER(uint32_t);
             *static_cast<uint32_t*>(entry.data) = value;
+            break;
+        }
+
+        case Type::Float:
+        {
+            auto value = CONVERT_NUMBER(float);
+            *static_cast<float*>(entry.data) = value;
             break;
         }
 

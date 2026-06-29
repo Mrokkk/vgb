@@ -70,6 +70,7 @@ pkg_check_modules(ZLIB REQUIRED zlib)
 
 add_library(zlib INTERFACE)
 target_link_libraries(zlib INTERFACE ${ZLIB_LIBRARIES})
+target_link_directories(zlib INTERFACE ${ZLIB_LIBRARY_DIRS})
 target_include_directories(zlib SYSTEM INTERFACE ${ZLIB_INCLUDE_DIRS})
 
 add_library(backtrace INTERFACE)
@@ -77,6 +78,8 @@ if(PkgConfig_FOUND)
     target_compile_options(backtrace INTERFACE "-DUSE_BACKTRACE")
     target_include_directories(backtrace SYSTEM INTERFACE ${BACKTRACE_INCLUDE_DIRS})
 endif()
+
+find_package(Fontconfig)
 
 if(BUILD_TESTS)
     add_library(doctest INTERFACE)

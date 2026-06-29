@@ -19,6 +19,7 @@ struct IniSerializer final
         Bool,
         Int32,
         Uint32,
+        Float,
         String,
     };
 
@@ -35,6 +36,16 @@ struct IniSerializer final
     ALWAYS_INLINE static void registerData(const std::string_view& name, uint32_t& data)
     {
         registerData(name, &data, Type::Uint32);
+    }
+
+    ALWAYS_INLINE static void registerData(const std::string_view& name, float& data)
+    {
+        registerData(name, &data, Type::Float);
+    }
+
+    ALWAYS_INLINE static void registerData(const std::string_view& name, std::string& data)
+    {
+        registerData(name, &data, Type::String);
     }
 
     static void registerData(const std::string_view& name, void* data, Type type);

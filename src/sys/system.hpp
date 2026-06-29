@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <expected>
 #include <string>
+#include <vector>
 
 #include "fwd.hpp"
 #include "utils/inline.hpp"
@@ -62,5 +63,21 @@ MaybeMappedFile mapFile(const char* pathname, bool readOnly = true);
 std::expected<bool, std::string> saveToFile(const char* pathname, const void* data, size_t size);
 
 std::string getConfigDir();
+
+struct FontStyle final
+{
+    std::string path;
+    std::string name;
+};
+
+struct Font final
+{
+    std::string family;
+    std::vector<FontStyle> styles;
+};
+
+using Fonts = std::vector<Font>;
+
+Fonts getFonts();
 
 }  // namespace sys

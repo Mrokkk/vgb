@@ -14,6 +14,7 @@
 #include "debugger/games/game.hpp"
 #include "debugger/symbols_map.hpp"
 #include "game_boy.hpp"
+#include "sys/system.hpp"
 
 namespace debugger
 {
@@ -50,20 +51,28 @@ struct GUI final
     INI_SAVED(bool, callstackWindow);
     INI_SAVED(uint32_t, messageTime);
     INI_SAVED(uint32_t, messageFadeOutTime);
-    size_t      counter;
-    float       ips;
-    float       mhz;
-    float       sumIps;
-    float       sumMhz;
-    uint64_t    prevInstructions;
-    uint64_t    prevCycles;
+    INI_SAVED(std::string, fontFamily);
+    INI_SAVED(std::string, fontStyle);
+    INI_SAVED(float, fontSize);
+
+    bool                  configWindow;
+    size_t                counter;
+    float                 ips;
+    float                 mhz;
+    float                 sumIps;
+    float                 sumMhz;
+    uint64_t              prevInstructions;
+    uint64_t              prevCycles;
+    void*                 defaultFont;
+    const sys::Font*      currentFont;
+    const sys::FontStyle* currentFontStyle;
+    sys::Fonts            fonts;
 
     char lineBuffer[256];
     char addrBuffer[32];
     char ioFilterBuffer[32];
 
     std::string iniPath;
-
     std::list<Message> messages;
 };
 

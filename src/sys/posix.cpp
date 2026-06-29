@@ -10,7 +10,9 @@
 #include <cxxabi.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <filesystem>
 #include <iterator>
+#include <map>
 #include <stdio.h>
 #include <string>
 #include <thread>
@@ -22,6 +24,7 @@
 #include <backtrace.h>
 #endif
 
+#include <fontconfig/fontconfig.h>
 #include <fmt/base.h>
 #include <fmt/color.h>
 #include <sys/mman.h>
@@ -536,6 +539,62 @@ std::string getConfigDir()
     mkdir(path.c_str(), 0755);
 
     return {path};
+}
+
+std::vector<Font> getFonts()
+{
+    auto config = FcInitLoadConfigAndFonts();
+    auto pat = FcPatternCreate();
+    auto os = FcObjectSetBuild(FC_FAMILY, FC_STYLE, FC_FILE, FC_LANG, nullptr);
+    auto fs = FcFontList(config, pat, os);
+
+    if (not fs) [[unlikely]]
+    {
+        return {};
+    }
+
+    std::map<std::string, Font> familyToFonts;
+
+    for (int i = 0; i < fs->nfont; ++i)
+    {
+        const auto font = fs->fonts[i];
+        FcChar8* file = nullptr;
+        FcChar8* style = nullptr;
+        FcChar8* family = nullptr;
+
+        if (FcPatternGetString(font, FC_FILE, 0, &file) == FcResultMatch and
+            FcPatternGetString(font, FC_FAMILY, 0, &family) == FcResultMatch and
+            FcPatternGetString(font, FC_STYLE, 0, &style) == FcResultMatch)
+        {
+            std::filesystem::path fontPath(reinterpret_cast<char*>(file));
+            std::string fontStyle(reinterpret_cast<char*>(style));
+            std::string fontFamily(reinterpret_cast<char*>(family));
+
+            if (fontPath.extension() == ".ttf")
+            {
+                auto& f = familyToFonts[fontFamily];
+                f.family = std::move(fontFamily);
+                f.styles.emplace_back(std::move(fontPath.native()), std::move(fontStyle));
+            }
+            else if (fontPath.extension() == ".otf")
+            {
+                auto& f = familyToFonts[fontFamily];
+                f.family = std::move(fontFamily);
+                f.styles.emplace_back(std::move(fontPath.native()), std::move(fontStyle));
+            }
+        }
+    }
+
+    FcFontSetDestroy(fs);
+
+    Fonts fonts;
+
+    for (auto& [family, font] : familyToFonts)
+    {
+        fonts.push_back(font);
+    }
+
+    return fonts;
 }
 
 }  // namespace sys
