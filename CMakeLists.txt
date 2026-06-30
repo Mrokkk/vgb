@@ -80,7 +80,6 @@ add_library(emulator OBJECT
     src/debugger/symbols_map.cpp
     src/event_system.cpp
     src/game_boy.cpp
-    src/input.cpp
     src/interpreter/command.cpp
     src/interpreter/interpreter.cpp
     src/interpreter/lexer.cpp
@@ -90,12 +89,15 @@ add_library(emulator OBJECT
     src/memory/memory.cpp
     src/memory/printers.cpp
     src/ppu.cpp
-    src/raylib/input.cpp
-    src/raylib/renderer.cpp
-    src/renderer.cpp
     src/save_manager.cpp
     src/save_serializer.cpp
+    src/sys/mapped_file.cpp
+    src/sys/platform.cpp
     src/sys/posix.cpp
+    src/sys/raylib/input.cpp
+    src/sys/raylib/renderer.cpp
+    src/sys/supervision.cpp
+    src/sys/system.cpp
     src/timer.cpp
     src/utils/string.cpp
     src/utils/time.cpp

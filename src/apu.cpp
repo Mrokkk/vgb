@@ -6,7 +6,7 @@
 #include "game_boy.hpp"
 #include "memory/generic.hpp"
 
-struct Sound final : Component
+struct Apu final : Component
 {
     void reset() override;
 
@@ -22,31 +22,31 @@ struct Sound final : Component
     IO io;
 };
 
-void Sound::reset()
+void Apu::reset()
 {
 }
 
-void Sound::store(uint16_t address, uint8_t value)
+void Apu::store(uint16_t address, uint8_t value)
 {
     return io.store(address, value);
 }
 
-uint8_t Sound::load(uint16_t address) const
+uint8_t Apu::load(uint16_t address) const
 {
     return io.load(address);
 }
 
-void Sound::IO::store(uint8_t addr, uint8_t value)
+void Apu::IO::store(uint8_t addr, uint8_t value)
 {
     (void)(addr and value);
 }
 
-uint8_t Sound::IO::load(uint8_t addr) const
+uint8_t Apu::IO::load(uint8_t addr) const
 {
     return 0 and addr;
 }
 
-void createApu(GameBoy& gb, const Config&)
+void createApu(GameBoy& gb)
 {
-    gb.registerComponent(Component::Apu, utils::makeUnique<Sound>());
+    gb.registerComponent(Component::Apu, utils::makeUnique<Apu>());
 }

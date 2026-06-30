@@ -133,7 +133,7 @@ void Timer::scheduleTima(size_t cycles)
     gb.events.scheduleEvent(timaEvent, cycles + duration);
 }
 
-void createTimer(GameBoy& gb, const Config&)
+void createTimer(GameBoy& gb)
 {
     gb.registerComponent(Component::Timer, utils::makeUnique<Timer>());
 }

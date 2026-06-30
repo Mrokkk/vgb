@@ -2,4 +2,4 @@
 
 #include "fwd.hpp"
 
-void createApu(GameBoy& gb, const Config& config);
+void createApu(GameBoy& gb);

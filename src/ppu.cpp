@@ -13,6 +13,7 @@
 #include "game_boy.hpp"
 #include "memory/generic.hpp"
 #include "save_serializer.hpp"
+#include "sys/platform.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
 
@@ -396,7 +397,7 @@ void Ppu::drawLine()
                 }
                 if (not obj->attr.prio or bgColor == 0)
                 {
-                    gb.renderer->drawPixel(x, y, objPalette[color + obj->attr.dmgPalette * 4]);
+                    sys::platform.renderer->drawPixel(x, y, objPalette[color + obj->attr.dmgPalette * 4]);
                     gotObj = true;
                 }
                 break;
@@ -404,7 +405,7 @@ void Ppu::drawLine()
         }
         if (not gotObj)
         {
-            gb.renderer->drawPixel(x, y, bgPalette[bgColor]);
+            sys::platform.renderer->drawPixel(x, y, bgPalette[bgColor]);
         }
     }
 }
@@ -502,7 +503,7 @@ uint8_t Ppu::IO::load(uint8_t addr) const
     return BaseIO::load(addr);
 }
 
-void createPpu(GameBoy& gb, const Config& config)
+void createPpu(GameBoy& gb)
 {
-    gb.registerComponent(Component::Ppu, utils::makeUnique<Ppu>(config));
+    gb.registerComponent(Component::Ppu, utils::makeUnique<Ppu>(gb.config));
 }

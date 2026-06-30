@@ -13,10 +13,9 @@
 #include "cpu/sm83.hpp"
 #include "joypad.hpp"
 #include "ppu.hpp"
-#include "renderer.hpp"
 #include "save_manager.hpp"
 #include "save_serializer.hpp"
-#include "sys/system.hpp"
+#include "sys/platform.hpp"
 #include "timer.hpp"
 #include "utils/unique_ptr.hpp"
 
@@ -59,13 +58,10 @@ void GameBoy::load(void* rom, void* ram, const Config& config)
 
     this->config = config;
 
-    createRenderer(*this, config);
-    createInput(*this, config);
-
-    createPpu(*this, config);
-    createJoypad(*this, config);
-    createApu(*this, config);
-    createTimer(*this, config);
+    createPpu(*this);
+    createJoypad(*this);
+    createApu(*this);
+    createTimer(*this);
 
     if (config.skipBootRom)
     {
@@ -145,9 +141,7 @@ void GameBoy::frame()
     if ((counter++ % speedMultiplier) == 0)
     {
         ++frameNumber;
-        sys::pingSupervision();
-        gb.input->update();
-        gb.renderer->render();
+        sys::frame();
     }
 }
 
@@ -155,7 +149,7 @@ void GameBoy::saveRam()
 {
     if (cartridge.getRam() and cartridge.isRamDirty())
     {
-        auto res = sys::saveToFile(config.cartridgeRamPath.c_str(), cartridge.getRam(), cartridge.getRamSize());
+        auto res = sys::writeToFile(config.cartridgeRamPath.c_str(), cartridge.getRam(), cartridge.getRamSize());
 
         if (not res)
         {

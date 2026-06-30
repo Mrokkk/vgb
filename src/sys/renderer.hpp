@@ -2,8 +2,10 @@
 
 #include <cstdint>
 
-#include "fwd.hpp"
 #include "utils/unique_ptr.hpp"
+
+namespace sys
+{
 
 struct Renderer
 {
@@ -15,4 +17,4 @@ struct Renderer
 
 using RendererPtr = utils::UniquePtr<Renderer>;
 
-void createRenderer(GameBoy& gb, const Config& config);
+}  // namespace sys

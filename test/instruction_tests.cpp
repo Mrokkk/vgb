@@ -5,15 +5,10 @@
 #include "apu.hpp"
 #include "cpu/exception.hpp"
 #include "game_boy.hpp"
-#include "input.hpp"
 #include "joypad.hpp"
 #include "ppu.hpp"
-#include "renderer.hpp"
-#include "test_config.hpp"
 #include "timer.hpp"
 #include "utils/units.hpp"
-
-GameBoy gb;
 
 struct TestData
 {
@@ -119,12 +114,10 @@ struct Fixture
         static bool initialized = false;
         if (not initialized)
         {
-            createRenderer(gb, testConfig);
-            createInput(gb, testConfig);
-            createPpu(gb, testConfig);
-            createJoypad(gb, testConfig);
-            createApu(gb, testConfig);
-            createTimer(gb, testConfig);
+            createPpu(gb);
+            createJoypad(gb);
+            createApu(gb);
+            createTimer(gb);
             gb.skipBootRom();
             initialized = true;
         }

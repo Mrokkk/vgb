@@ -11,7 +11,7 @@
 #include "core/thread.hpp"
 #include "debugger/context.hpp"
 #include "game_boy.hpp"
-#include "sys/system.hpp"
+#include "sys/platform.hpp"
 #include "utils/time.hpp"
 
 namespace debugger

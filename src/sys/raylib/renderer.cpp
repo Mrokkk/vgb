@@ -7,16 +7,17 @@
 #include <raylib.h>
 #include <rlImGui.h>
 
-#include "../renderer.hpp"
 #include "core/logger.hpp"
 #include "debugger/main.hpp"
 #include "game_boy.hpp"
 #include "ppu.hpp"
 #include "save_serializer.hpp"
+#include "sys/platform.hpp"
+#include "sys/renderer.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
 
-namespace raylib
+namespace sys::raylib
 {
 
 #define RAYLIB_LOG 1
@@ -55,8 +56,6 @@ static void raylibLogFormat(int msgType, const char* text, va_list args)
     }
 
     char buf[256];
-    char* it = buf;
-
     core::Severity severity;
 
     switch (msgType)
@@ -67,7 +66,8 @@ static void raylibLogFormat(int msgType, const char* text, va_list args)
         default:          severity = core::Severity::debug; break;
     }
 
-    it += vsprintf(it, text, args);
+    auto len = vsnprintf(buf, sizeof(buf), text, args);
+    buf[len] = 0;
 
     core::logger.log(severity).buffer() = buf;
 }
@@ -78,6 +78,7 @@ RaylibRenderer::RaylibRenderer()
     {
         SetConfigFlags(FLAG_FULLSCREEN_MODE);
     }
+
     SetTraceLogCallback(raylibLogFormat);
     SetTargetFPS(60);
     InitWindow(GB_LCD_RESX * SCALING, GB_LCD_RESY * SCALING, "GameBoy");
@@ -214,9 +215,9 @@ unsigned int RaylibRenderer::renderMap(bool drawScxScyWindow)
     return mMapTexture.id;
 }
 
-void createRenderer(GameBoy& gb)
+void createRenderer()
 {
-    gb.renderer = utils::makeUnique<RaylibRenderer>();
+    platform.renderer = utils::makeUnique<RaylibRenderer>();
 }
 
-}  // namespace raylib
+}  // namespace sys::raylib

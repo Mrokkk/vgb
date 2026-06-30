@@ -14,7 +14,7 @@
 #include "debugger/games/game.hpp"
 #include "debugger/symbols_map.hpp"
 #include "game_boy.hpp"
-#include "sys/system.hpp"
+#include "sys/font.hpp"
 
 namespace debugger
 {

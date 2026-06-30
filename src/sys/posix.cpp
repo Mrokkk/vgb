@@ -1,6 +1,4 @@
-#include "system.hpp"
-
-#include <atomic>
+#ifdef __unix__
 #include <cerrno>
 #include <csignal>
 #include <cstdint>
@@ -15,7 +13,6 @@
 #include <map>
 #include <stdio.h>
 #include <string>
-#include <thread>
 #include <ucontext.h>
 #include <unistd.h>
 #include <vector>
@@ -32,14 +29,12 @@
 
 #include "config.hpp"
 #include "game_boy.hpp"
+#include "sys/platform.hpp"
+#include "sys/supervision.hpp"
 #include "utils/string.hpp"
 
-namespace sys
+namespace sys::posix
 {
-
-static std::atomic_int counter;
-static std::thread supervisionThread;
-static std::atomic_bool stop;
 
 #ifdef USE_BACKTRACE
 static backtrace_state* backtraceState;
@@ -48,7 +43,7 @@ using BacktraceFullFn = decltype(&backtrace_full);
 static BacktraceCreateStateFn backtraceCreateState;
 static BacktraceFullFn backtraceFull;
 
-struct ProcessMapping
+struct ProcessMapping final
 {
     std::string name;
     uintptr_t   start;
@@ -57,7 +52,7 @@ struct ProcessMapping
 
 using ProcessMappings = std::vector<ProcessMapping>;
 
-struct BacktraceContext
+struct BacktraceContext final
 {
     unsigned int    index;
     ProcessMappings maps;
@@ -119,7 +114,7 @@ static int backtraceCallback(void* data, uintptr_t pc, const char* pathname, int
     else
     {
         auto mappingName = mappingNameFind(ctx->maps, pc);
-        fmt::println("#{} {} in {}",
+        println("#{} {} in {}",
             ctx->index,
             styled((void*)pc, fg(terminal_color::blue)),
             styled(mappingName, fg(terminal_color::yellow)));
@@ -190,7 +185,7 @@ static void stacktraceLogInternal()
 
 static void crashHandle(int sig, siginfo_t* info, void* context)
 {
-    stop = true;
+    stopSupervision();
 
     auto m = (ucontext_t*)context;
 
@@ -318,57 +313,15 @@ static void stacktraceLogInternal()
 }
 #endif
 
-void stacktraceLog(void)
+static void abort()
+{
+    auto pid = getpid();
+    kill(pid, SIGABRT);
+}
+
+static void stacktraceLog(void)
 {
     stacktraceLogInternal();
-}
-
-void pingSupervision()
-{
-    counter++;
-}
-
-void stopSupervision()
-{
-    if (stop)
-    {
-        return;
-    }
-    stop = true;
-    if (supervisionThread.joinable())
-    {
-        supervisionThread.join();
-    }
-}
-
-static void supervision()
-{
-    using namespace std::chrono_literals;
-
-    int failed = 0;
-    while (1)
-    {
-        std::this_thread::sleep_for(200ms);
-        if (stop)
-        {
-            break;
-        }
-        if (counter == 0)
-        {
-            if (++failed == 5)
-            {
-                auto pid = getpid();
-                fmt::println("Main thread ({}) is not responding", pid);
-                kill(pid, SIGABRT);
-                break;
-            }
-        }
-        else
-        {
-            counter = 0;
-            failed = 0;
-        }
-    }
 }
 
 static void interruptionHandle(int)
@@ -376,103 +329,19 @@ static void interruptionHandle(int)
     gb.cpu.stop();
 }
 
-void initialize(const Config& config)
-{
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-
-#ifdef USE_BACKTRACE
-    const auto libbacktrace = dlopen("libbacktrace.so", RTLD_LAZY);
-
-    if (not libbacktrace)
-    {
-        fprintf(stderr, "cannot load libbacktrace.so\n");
-    }
-    else
-    {
-        sa.sa_sigaction = &crashHandle;
-        sa.sa_flags = SA_RESETHAND | SA_SIGINFO;
-
-        sigaction(SIGABRT, &sa, nullptr);
-        sigaction(SIGBUS,  &sa, nullptr);
-        sigaction(SIGFPE,  &sa, nullptr);
-        sigaction(SIGILL,  &sa, nullptr);
-        sigaction(SIGSEGV, &sa, nullptr);
-
-        backtraceCreateState = reinterpret_cast<BacktraceCreateStateFn>(dlsym(libbacktrace, "backtrace_create_state"));
-        backtraceFull = reinterpret_cast<BacktraceFullFn>(dlsym(libbacktrace, "backtrace_full"));
-
-        if (not backtraceFull or not backtraceCreateState)
-        {
-            fprintf(stderr, "cannot find backtrace_full or backtrace_create_state\n");
-            backtraceFull = nullptr;
-            backtraceCreateState = nullptr;
-            return;
-        }
-
-        backtraceState = backtraceCreateState(NULL, 0, backtraceErrorCallback, NULL);
-    }
-#endif
-
-    sa.sa_flags = 0;
-    sa.sa_handler = &interruptionHandle;
-
-    sigaction(SIGINT, &sa, nullptr);
-
-    if (config.useSupervision)
-    {
-        supervisionThread = std::thread(&supervision);
-        atexit(&stopSupervision);
-    }
-}
-
-bool doesFileExist(const char* pathname)
+static bool doesFileExist(const char* pathname)
 {
     struct stat buf;
     return stat(pathname, &buf) == 0 and S_ISREG(buf.st_mode);
 }
 
-bool doesDirExist(const char* pathname)
+static bool doesDirExist(const char* pathname)
 {
     struct stat buf;
     return stat(pathname, &buf) == 0 and S_ISDIR(buf.st_mode);
 }
 
-MappedFile::MappedFile(bool readonly, void* ptr, size_t size)
-    : mReadonly(readonly)
-    , mPtr(ptr)
-    , mSize(size)
-{
-}
-
-MappedFile::~MappedFile()
-{
-    if (mPtr)
-    {
-        munmap(mPtr, mSize);
-    }
-}
-
-MappedFile::MappedFile(MappedFile&& other)
-    : mReadonly(other.mReadonly)
-    , mPtr(other.mPtr)
-    , mSize(other.mSize)
-{
-    other.mPtr = nullptr;
-    other.mSize = 0;
-}
-
-MappedFile& MappedFile::operator=(MappedFile&& other)
-{
-    mReadonly = other.mReadonly;
-    mPtr = other.mPtr;
-    mSize = other.mSize;
-    other.mPtr = nullptr;
-    other.mSize = 0;
-    return *this;
-}
-
-MaybeMappedFile mapFile(const char* pathname, bool readOnly)
+static MaybeMapped mapFileImpl(const char* pathname, bool readOnly)
 {
     const int fd = open(pathname, O_RDONLY);
 
@@ -497,14 +366,19 @@ MaybeMappedFile mapFile(const char* pathname, bool readOnly)
 
     close(fd);
 
-    return MappedFile{
-        readOnly,
+    return Mapped{
         mapped,
         static_cast<size_t>(stat.st_size)
     };
 }
 
-std::expected<bool, std::string> saveToFile(const char* pathname, const void* data, size_t size)
+static MaybeError unmapFileImpl(void* ptr, size_t size)
+{
+    munmap(ptr, size);
+    return {};
+}
+
+static MaybeError writeToFile(const char* pathname, const void* data, size_t size)
 {
     const int fd = open(pathname, O_RDWR | O_CREAT, 0660);
 
@@ -597,4 +471,59 @@ std::vector<Font> getFonts()
     return fonts;
 }
 
-}  // namespace sys
+void initialize(const Config&)
+{
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+
+#ifdef USE_BACKTRACE
+    const auto libbacktrace = dlopen("libbacktrace.so", RTLD_LAZY);
+
+    if (not libbacktrace)
+    {
+        fprintf(stderr, "cannot load libbacktrace.so\n");
+    }
+    else
+    {
+        sa.sa_sigaction = &crashHandle;
+        sa.sa_flags = SA_RESETHAND | SA_SIGINFO;
+
+        sigaction(SIGABRT, &sa, nullptr);
+        sigaction(SIGBUS,  &sa, nullptr);
+        sigaction(SIGFPE,  &sa, nullptr);
+        sigaction(SIGILL,  &sa, nullptr);
+        sigaction(SIGSEGV, &sa, nullptr);
+
+        backtraceCreateState = reinterpret_cast<BacktraceCreateStateFn>(dlsym(libbacktrace, "backtrace_create_state"));
+        backtraceFull = reinterpret_cast<BacktraceFullFn>(dlsym(libbacktrace, "backtrace_full"));
+
+        if (not backtraceFull or not backtraceCreateState)
+        {
+            fprintf(stderr, "cannot find backtrace_full or backtrace_create_state\n");
+            backtraceFull = nullptr;
+            backtraceCreateState = nullptr;
+            return;
+        }
+
+        backtraceState = backtraceCreateState(NULL, 0, backtraceErrorCallback, NULL);
+    }
+#endif
+
+    sa.sa_flags = 0;
+    sa.sa_handler = &interruptionHandle;
+
+    sigaction(SIGINT, &sa, nullptr);
+
+    platform.abort               = &abort;
+    platform.stacktraceLog       = &stacktraceLog;
+    platform.writeToFile         = &writeToFile;
+    platform.getDefaultConfigDir = &getConfigDir;
+    platform.doesDirExist        = &doesDirExist;
+    platform.doesFileExist       = &doesFileExist;
+    platform.getFonts            = &getFonts;
+    platform.mapFileImpl         = &mapFileImpl;
+    platform.unmapFileImpl       = &unmapFileImpl;
+}
+
+}  // namespace sys::posix
+#endif

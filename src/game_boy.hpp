@@ -8,9 +8,7 @@
 #include "cpu/sm83.hpp"
 #include "event_system.hpp"
 #include "fwd.hpp"
-#include "input.hpp"
 #include "memory/cartridge.hpp"
-#include "renderer.hpp"
 #include "utils/immobile.hpp"
 #include "utils/unique_ptr.hpp"
 
@@ -51,8 +49,6 @@ struct GameBoy final : utils::Immobile
     Callback          scheduledCallback;
 
     ComponentPtr components[Component::Type::Last + 1];
-    RendererPtr renderer;
-    InputPtr input;
     Config config;
     bool inputEnabled;
     void* debuggerData;

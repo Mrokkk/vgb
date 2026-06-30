@@ -25,7 +25,8 @@
 #include "memory/memory_map.hpp"
 #include "ppu.hpp"
 #include "save_manager.hpp"
-#include "sys/system.hpp"
+#include "sys/font.hpp"
+#include "sys/platform.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
 #include "utils/units.hpp"
@@ -458,9 +459,9 @@ void initImGui(Context& ctx)
     core::IniSerializer::registerData("memEditorWindow", memEditor->Open);
 
     {
-        std::filesystem::path iniPath(sys::getConfigDir());
+        std::filesystem::path iniPath(sys::getDefaultConfigDir());
         iniPath /= "gui.ini";
-        ctx.gui.iniPath = iniPath.native();
+        ctx.gui.iniPath = std::move(iniPath.native());
     }
 
     ImGuiSettingsHandler iniHandler;
@@ -860,7 +861,7 @@ ALWAYS_INLINE static void drawMapWindow(Context& ctx)
     const auto viewportSize = ImGui::GetContentRegionAvail();
     const auto imageSize = scaleToRatio(viewportSize, 1, 1);
     ImGui::SetCursorPos((viewportSize - imageSize) * 0.5 + ImGui::GetCursorPos());
-    ImGui::Image(static_cast<ImTextureID>(gb.renderer->renderMap(ctx.gui.showScxScy)), imageSize);
+    ImGui::Image(static_cast<ImTextureID>(sys::platform.renderer->renderMap(ctx.gui.showScxScy)), imageSize);
 }
 
 ALWAYS_INLINE static void drawStyleEditorWindow(Context& ctx)

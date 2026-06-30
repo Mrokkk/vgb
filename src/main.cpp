@@ -4,9 +4,10 @@
 #include <filesystem>
 #include <fmt/base.h>
 
-#include "debugger/main.hpp"
 #include "config.hpp"
+#include "debugger/main.hpp"
 #include "game_boy.hpp"
+#include "sys/platform.hpp"
 #include "sys/system.hpp"
 
 GameBoy gb;
@@ -28,7 +29,7 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    const Config config{
+    gb.config = {
         .cartridgePath = cmdl[1],
         .cartridgeRamPath = createRamFilePath(cmdl[1]),
         .skipBootRom = cmdl[{"-f", "--skip-boot"}],
@@ -37,34 +38,34 @@ int main(int argc, char* argv[])
         .videoConfig = VideoConfig::Graphical
     };
 
-    sys::initialize(config);
+    sys::initialize(gb.config);
 
-    const auto mappedRom = sys::mapFile(config.cartridgePath.c_str(), false);
+    const auto mappedRom = sys::mapFile(gb.config.cartridgePath.c_str(), false);
 
     if (not mappedRom) [[unlikely]]
     {
-        fmt::println(stderr, "{}: cannot map: {}", config.cartridgePath, mappedRom.error());
+        fmt::println(stderr, "{}: cannot map: {}", gb.config.cartridgePath, mappedRom.error());
         return EXIT_FAILURE;
     }
 
     sys::MappedFile mappedRam;
 
-    if (sys::doesFileExist(config.cartridgeRamPath.c_str()))
+    if (sys::doesFileExist(gb.config.cartridgeRamPath.c_str()))
     {
-        auto result = sys::mapFile(config.cartridgeRamPath.c_str(), false);
+        auto result = sys::mapFile(gb.config.cartridgeRamPath.c_str(), false);
 
         if (not result) [[unlikely]]
         {
-            fmt::println(stderr, "{}: cannot map: {}", config.cartridgeRamPath, result.error());
+            fmt::println(stderr, "{}: cannot map: {}", gb.config.cartridgeRamPath, result.error());
             return EXIT_FAILURE;
         }
 
         mappedRam = std::move(*result);
     }
 
-    gb.load(mappedRom->getData(), mappedRam.getData(), config);
+    gb.load(mappedRom->getData(), mappedRam.getData(), gb.config);
 
-    if (config.useDebugger)
+    if (gb.config.useDebugger)
     {
         debugger::main(gb);
     }

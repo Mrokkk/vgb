@@ -2,9 +2,9 @@
 
 #include "fwd.hpp"
 
-namespace sys
+namespace sys::posix
 {
 
 void initialize(const Config& config);
 
-}  // namespace sys
+}  // namespace sys::posix

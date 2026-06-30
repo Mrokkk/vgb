@@ -74,7 +74,7 @@ target_link_directories(zlib INTERFACE ${ZLIB_LIBRARY_DIRS})
 target_include_directories(zlib SYSTEM INTERFACE ${ZLIB_INCLUDE_DIRS})
 
 add_library(backtrace INTERFACE)
-if(PkgConfig_FOUND)
+if(BACKTRACE_FOUND)
     target_compile_options(backtrace INTERFACE "-DUSE_BACKTRACE")
     target_include_directories(backtrace SYSTEM INTERFACE ${BACKTRACE_INCLUDE_DIRS})
 endif()

@@ -2,8 +2,10 @@
 
 #include <functional>
 
-#include "fwd.hpp"
 #include "utils/unique_ptr.hpp"
+
+namespace sys
+{
 
 struct GameBoyInput
 {
@@ -27,4 +29,4 @@ struct Input
 
 using InputPtr = utils::UniquePtr<Input>;
 
-void createInput(GameBoy& gb, const Config& config);
+}  // namespace sys

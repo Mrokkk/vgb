@@ -6,8 +6,9 @@
 #include "component.hpp"
 #include "cpu/sm83.hpp"
 #include "game_boy.hpp"
-#include "input.hpp"
 #include "save_serializer.hpp"
+#include "sys/input.hpp"
+#include "sys/platform.hpp"
 #include "utils/unique_ptr.hpp"
 
 struct Joypad : Component
@@ -15,7 +16,7 @@ struct Joypad : Component
     Joypad();
 
     void reset() override;
-    void update(GameBoyInput input);
+    void update(sys::GameBoyInput input);
 
     void store(uint16_t address, uint8_t value) override;
     uint8_t load(uint16_t address) const override;
@@ -76,8 +77,8 @@ Joypad::Joypad()
     directional.value = 0;
     joyp.value = 0xff;
 
-    gb.input->subscribeForGameBoyInput(
-        [this](GameBoyInput input)
+    sys::platform.input->subscribeForGameBoyInput(
+        [this](sys::GameBoyInput input)
         {
             update(input);
         });
@@ -111,7 +112,7 @@ void Joypad::reset()
     } \
     while (0)
 
-void Joypad::update(GameBoyInput input)
+void Joypad::update(sys::GameBoyInput input)
 {
     auto old = joyp;
 
@@ -174,7 +175,7 @@ uint8_t Joypad::load(uint16_t) const
     return joyp.value;
 }
 
-void createJoypad(GameBoy& gb, const Config&)
+void createJoypad(GameBoy& gb)
 {
     gb.registerComponent(Component::Joypad, utils::makeUnique<Joypad>());
 }

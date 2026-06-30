@@ -3,17 +3,19 @@
 
 #include "config.hpp"
 #include "sys/system.hpp"
-#include "test_config.hpp"
+#include "game_boy.hpp"
 
-Config testConfig = {
-    .skipBootRom = true,
-    .useSupervision = false,
-    .videoConfig = VideoConfig::Headless,
-};
+GameBoy gb;
 
 int main(int argc, char** argv)
 {
-    sys::initialize(testConfig);
+    gb.config = {
+        .skipBootRom = true,
+        .useSupervision = false,
+        .videoConfig = VideoConfig::Headless,
+    };
+
+    sys::initialize(gb.config);
     doctest::Context context;
 
     context.applyCommandLine(argc, argv);

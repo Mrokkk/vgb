@@ -12,7 +12,7 @@
 #include "core/logger.hpp"
 #include "game_boy.hpp"
 #include "save_serializer.hpp"
-#include "sys/system.hpp"
+#include "sys/platform.hpp"
 #include "utils/source_location.hpp"
 #include "utils/units.hpp"
 
@@ -84,7 +84,7 @@ void SaveManager::quickSave()
         return;
     }
 
-    auto result = sys::saveToFile(save.c_str(), buffer, compressedSize);
+    auto result = sys::writeToFile(save.c_str(), buffer, compressedSize);
 
     if (not result) [[unlikely]]
     {

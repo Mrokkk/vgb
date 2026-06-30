@@ -5,10 +5,11 @@
 #include <raylib.h>
 
 #include "game_boy.hpp"
-#include "../input.hpp"
+#include "sys/input.hpp"
+#include "sys/platform.hpp"
 #include "utils/unique_ptr.hpp"
 
-namespace raylib
+namespace sys::raylib
 {
 
 struct RaylibInput final : Input
@@ -81,9 +82,9 @@ void RaylibInput::subscribeForGameBoyInput(GameBoyInputCallback callback)
     gbInputCallback = std::move(callback);
 }
 
-void createInput(GameBoy& gb, const Config&)
+void createInput()
 {
-    gb.input = utils::makeUnique<RaylibInput>();
+    sys::platform.input = utils::makeUnique<RaylibInput>();
 }
 
-}  // namespace raylib
+}  // namespace sys::raylib

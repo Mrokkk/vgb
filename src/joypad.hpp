@@ -2,4 +2,4 @@
 
 #include "fwd.hpp"
 
-void createJoypad(GameBoy& gb, const Config& config);
+void createJoypad(GameBoy& gb);
