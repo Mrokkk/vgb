@@ -21,7 +21,7 @@ namespace sys::raylib
 {
 
 #define RAYLIB_LOG 1
-#define SCALING 6
+#define DEFAULT_SCALE 6
 
 struct RaylibRenderer final : Renderer
 {
@@ -69,20 +69,16 @@ static void raylibLogFormat(int msgType, const char* text, va_list args)
     auto len = vsnprintf(buf, sizeof(buf), text, args);
     buf[len] = 0;
 
-    core::logger.log(severity).buffer() = buf;
+    core::logger.log(severity).buffer().assign(buf, len);
 }
 
 RaylibRenderer::RaylibRenderer()
 {
-    if (gb.config.useDebugger)
-    {
-        SetConfigFlags(FLAG_FULLSCREEN_MODE);
-    }
-
+    SetConfigFlags(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_RESIZABLE);
     SetTraceLogCallback(raylibLogFormat);
     SetTargetFPS(60);
-    InitWindow(GB_LCD_RESX * SCALING, GB_LCD_RESY * SCALING, "GameBoy");
-    SetWindowState(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_ALWAYS_RUN | FLAG_WINDOW_RESIZABLE);
+    InitWindow(GB_LCD_RESX * DEFAULT_SCALE, GB_LCD_RESY * DEFAULT_SCALE, "GameBoy");
+    SetWindowState(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_RESIZABLE);
 
     mScreenImage = GenImageColor(GB_LCD_RESX, GB_LCD_RESY, DARKGRAY);
     mScreenTexture = LoadTextureFromImage(mScreenImage);
@@ -91,7 +87,6 @@ RaylibRenderer::RaylibRenderer()
     {
         mMapImage = GenImageColor(256, 256, DARKGRAY);
         mMapTexture = LoadTextureFromImage(mMapImage);
-
         rlImGuiSetup(true);
     }
 
@@ -127,13 +122,20 @@ void RaylibRenderer::render()
         {
             IMGUI()
             {
-                debugger::frame(mScreenTexture.id, GetFPS());
+                debugger::frame(mScreenTexture.id);
             }
         }
         else
         {
-            DrawTextureEx(mScreenTexture, Vector2{0, 0}, 0.0f, SCALING, WHITE);
-            DrawFPS(SCALING * GB_LCD_RESX - 100, 20);
+            auto resX = GetScreenWidth();
+            auto resY = GetScreenHeight();
+            auto scaleX = float(resX) / GB_LCD_RESX;
+            auto scaleY = float(resY) / GB_LCD_RESY;
+            auto scale = std::min(scaleX, scaleY);
+            auto posX = (resX - scale * GB_LCD_RESX) / 2;
+            auto posY = (resY - scale * GB_LCD_RESY) / 2;
+            DrawTextureEx(mScreenTexture, Vector2{posX, posY}, 0.0f, std::min(scaleX, scaleY), WHITE);
+            DrawFPS(resX - 100, 20);
         }
     }
 }

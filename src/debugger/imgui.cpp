@@ -612,7 +612,7 @@ ALWAYS_INLINE static void drawMenuBar(Context& ctx)
     }
 }
 
-ALWAYS_INLINE static void drawLcd(Context&, unsigned int gameTextureId, int fps)
+ALWAYS_INLINE static void drawLcd(Context&, unsigned int gameTextureId)
 {
     auto window = ImGui::CreateWindow("LCD");
 
@@ -621,7 +621,7 @@ ALWAYS_INLINE static void drawLcd(Context&, unsigned int gameTextureId, int fps)
         return;
     }
 
-    ImGui::Text(ImGui::IsWindowFocused() ? "%d FPS; speed: %ux" : "%d FPS; speed: %ux  (click to focus)", fps, gb.speedMultiplier);
+    ImGui::Text(ImGui::IsWindowFocused() ? "%0.1f FPS; speed: %ux" : "%0.1f FPS; speed: %ux  (click to focus)", ImGui::GetIO().Framerate, gb.speedMultiplier);
     const auto viewportSize = ImGui::GetContentRegionAvail();
     const auto imageSize = scaleToRatio(viewportSize, GB_LCD_RESX, GB_LCD_RESY);
     ImGui::SetCursorPos((viewportSize - imageSize) * 0.5 + ImGui::GetCursorPos());
@@ -1357,7 +1357,7 @@ static void drawMessages(Context& ctx)
     ImGui::PopStyleColor();
 }
 
-void frame(unsigned int gameTextureId, int fps)
+void frame(unsigned int gameTextureId)
 {
     const auto dockspaceId = ImGui::GetID("vgb dockspace");
     const auto viewport = ImGui::GetMainViewport();
@@ -1367,7 +1367,7 @@ void frame(unsigned int gameTextureId, int fps)
     auto& ctx = *reinterpret_cast<Context*>(gb.debuggerData);
 
     drawMenuBar(ctx);
-    drawLcd(ctx, gameTextureId, fps);
+    drawLcd(ctx, gameTextureId);
     drawCartridgeWindow(ctx);
     drawCpuWindow(ctx);
     drawMemoryWindow(ctx);
