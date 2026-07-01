@@ -22,12 +22,12 @@ Memory::Memory()
 {
     vram.bank = 0;
     bankedWorkRam.bank = 0;
-    SaveSerializer::registerData(vram);
-    SaveSerializer::registerData(baseWorkRam);
-    SaveSerializer::registerData(bankedWorkRam);
-    SaveSerializer::registerData(oam);
-    SaveSerializer::registerData(highRam);
-    SaveSerializer::registerData(mBootRomEnabled);
+    SaveSerializer::registerData("memory.vram", vram);
+    SaveSerializer::registerData("memory.baseWorkRam", baseWorkRam);
+    SaveSerializer::registerData("memory.bankedWorkRam", bankedWorkRam);
+    SaveSerializer::registerData("memory.oam", oam);
+    SaveSerializer::registerData("memory.highRam", highRam);
+    SaveSerializer::registerData("memory.mBootRomEnabled", mBootRomEnabled);
 }
 
 Memory::~Memory() = default;

@@ -73,8 +73,9 @@ Timer::Timer()
     }))
 {
     reset();
-    SaveSerializer::registerData(values);
-    SaveSerializer::registerEvents({&divEvent, &timaEvent});
+    SaveSerializer::registerData("timer.values", values);
+    SaveSerializer::registerData("timer.divEvent", divEvent);
+    SaveSerializer::registerData("timer.timaEvent", timaEvent);
 }
 
 void Timer::reset()

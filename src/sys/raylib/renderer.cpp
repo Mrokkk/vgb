@@ -91,7 +91,7 @@ RaylibRenderer::RaylibRenderer()
         rlImGuiSetup(true);
     }
 
-    SaveSerializer::registerData(mScreenImage.data, mScreenImage.height * mScreenImage.width * 4);
+    SaveSerializer::registerData("screenImage", mScreenImage.data, mScreenImage.height * mScreenImage.width * 4);
 }
 
 RaylibRenderer::~RaylibRenderer()

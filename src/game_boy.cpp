@@ -14,7 +14,6 @@
 #include "joypad.hpp"
 #include "ppu.hpp"
 #include "save_manager.hpp"
-#include "save_serializer.hpp"
 #include "sys/platform.hpp"
 #include "timer.hpp"
 #include "utils/unique_ptr.hpp"
@@ -41,8 +40,6 @@ GameBoy::GameBoy()
     , frameNumber(0)
     , inputEnabled(true)
 {
-    SaveSerializer::registerData(frameNumber);
-
     for (auto& component : components)
     {
         component = utils::makeUnique<DummyComponent>();

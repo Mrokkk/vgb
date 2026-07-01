@@ -75,7 +75,7 @@ void Cartridge::initialize(void* rom, void* ram)
 {
     if (mRam)
     {
-        SaveSerializer::removeData(mRam);
+        SaveSerializer::removeData("cartridge.mRam");
     }
     mRom     = static_cast<uint8_t*>(rom);
     mRomSize = romSize(mHeader);
@@ -97,12 +97,12 @@ void Cartridge::initialize(void* rom, void* ram)
 
     if (not mDataRegistered)
     {
-        SaveSerializer::registerData(mRamEnabled);
-        SaveSerializer::registerData(mBank);
-        SaveSerializer::registerData(mRamBank);
+        SaveSerializer::registerData("cartridge.mRamEnabled", mRamEnabled);
+        SaveSerializer::registerData("cartridge.mBank", mBank);
+        SaveSerializer::registerData("cartridge.mRamBank", mRamBank);
         if (mRam)
         {
-            SaveSerializer::registerData(mRam, mRamSize);
+            SaveSerializer::registerData("cartridge.mRam", mRam, mRamSize);
         }
         mDataRegistered = true;
     }

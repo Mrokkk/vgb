@@ -19,20 +19,20 @@ struct SaveSerializer
 {
     template <typename T>
     requires (std::is_pod_v<T> and not std::is_pointer_v<T> and not std::is_array_v<T>)
-    ALWAYS_INLINE static void registerData(T& data)
+    ALWAYS_INLINE static void registerData(const std::string_view& name, T& data)
     {
-        registerData(reinterpret_cast<void*>(&data), sizeof(T));
+        registerData(name, reinterpret_cast<void*>(&data), sizeof(T));
     }
 
     template <typename T, size_t Size>
-    ALWAYS_INLINE static void registerData(T (&data)[Size])
+    ALWAYS_INLINE static void registerData(const std::string_view& name, T (&data)[Size])
     {
-        registerData(reinterpret_cast<void*>(data), Size);
+        registerData(name, reinterpret_cast<void*>(data), Size);
     }
 
-    static void registerData(void* data, size_t size);
-    static void registerEvents(std::vector<Event*> events);
-    static bool removeData(void* data);
+    static void registerData(const std::string_view& name, void* data, size_t size);
+    static void registerData(const std::string_view& name, Event& event);
+    static void removeData(const std::string_view& name);
 
     static size_t getDataSize();
 

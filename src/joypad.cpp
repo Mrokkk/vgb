@@ -83,9 +83,9 @@ Joypad::Joypad()
             update(input);
         });
 
-    SaveSerializer::registerData(buttons);
-    SaveSerializer::registerData(directional);
-    SaveSerializer::registerData(joyp);
+    SaveSerializer::registerData("joypad.buttons", buttons);
+    SaveSerializer::registerData("joypad.directional", directional);
+    SaveSerializer::registerData("joypad.joyp", joyp);
 }
 
 void Joypad::reset()

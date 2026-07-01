@@ -78,6 +78,7 @@ add_library(emulator OBJECT
     src/debugger/main.cpp
     src/debugger/printer.cpp
     src/debugger/symbols_map.cpp
+    src/error.cpp
     src/event_system.cpp
     src/game_boy.cpp
     src/interpreter/command.cpp

@@ -1,26 +1,28 @@
 #include "save_serializer.hpp"
 
-#include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <expected>
-#include <iterator>
+#include <map>
 #include <vector>
 
+#include <fmt/base.h>
+
+#include "error.hpp"
 #include "event.hpp"
 #include "event_system.hpp"
 #include "game_boy.hpp"
 #include "utils/immobile.hpp"
 #include "utils/inline.hpp"
 
-constexpr char HEADER[] = {'V', 'G', 'B', 'C'};
-
 namespace
 {
 
+constexpr uint16_t SIG = 0x4392;
+constexpr size_t MAX_NAME_LEN = 128;
+
 struct Reader final : utils::Immobile
 {
-    Reader(const void* data, size_t size)
+    ALWAYS_INLINE constexpr Reader(const void* data, size_t size)
         : mData(static_cast<const uint8_t*>(data))
         , mSize(size)
         , mCur(0)
@@ -38,6 +40,26 @@ struct Reader final : utils::Immobile
         return 0;
     }
 
+    int readAt(void* buffer, size_t off, size_t size)
+    {
+        if (validateReadAt(off, size)) [[unlikely]]
+        {
+            return -1;
+        }
+        memcpy(buffer, mData + off, size);
+        return 0;
+    }
+
+    ALWAYS_INLINE int validateReadAt(size_t off, size_t size)
+    {
+        return off + size > mSize;
+    }
+
+    ALWAYS_INLINE size_t getCurrent() const
+    {
+        return mCur;
+    }
+
 private:
     const uint8_t* mData;
     const size_t   mSize;
@@ -46,39 +68,70 @@ private:
 
 struct Writer final : utils::Immobile
 {
-    constexpr Writer(size_t size)
+    ALWAYS_INLINE constexpr Writer(size_t size)
         : mData(size)
-        , mOffset(0)
+        , mCur(0)
     {
     }
 
-    SerializedData release()
+    ALWAYS_INLINE SerializedData release()
     {
         return std::move(mData);
     }
 
+    ALWAYS_INLINE void write(const void* data, size_t size)
+    {
+        memcpy(mData.data() + mCur, data, size);
+        mCur += size;
+    }
+
     template <typename T>
     requires (not std::is_pointer_v<T>)
-    void write(const T* data, size_t size)
+    ALWAYS_INLINE void writeAt(const T* data, size_t off, size_t size)
     {
-        writeImpl(static_cast<const void*>(data), size);
+        memcpy(mData.data() + off, data, size);
+    }
+
+    ALWAYS_INLINE size_t size() const
+    {
+        return mData.size();
+    }
+
+    ALWAYS_INLINE size_t getCurrent() const
+    {
+        return mCur;
     }
 
 private:
-    void writeImpl(const void* data, size_t size)
-    {
-        memcpy(mData.data() + mOffset, data, size);
-        mOffset += size;
-    }
-
     SerializedData mData;
-    size_t         mOffset;
+    size_t         mCur;
+};
+
+enum class DataType
+{
+    Data,
+    Event,
 };
 
 struct DataEntry final
 {
-    void*  data;
-    size_t size;
+    DataType   type;
+    union
+    {
+        void*  data;
+        Event* event;
+    };
+    uint32_t   size;
+};
+
+struct SerializedDataEntry final
+{
+    uint16_t sig;
+    uint16_t entryLen;
+    DataType type;
+    uint32_t dataOffset;
+    uint32_t dataSize;
+    char     name[];
 };
 
 struct Registry final : utils::Immobile
@@ -89,15 +142,33 @@ struct Registry final : utils::Immobile
         return s;
     }
 
-    void addEvents(std::vector<Event*> events)
+    void addDataEntry(const std::string_view& name, DataEntry e)
     {
-        std::copy(events.begin(), events.end(), std::back_inserter(mEvents));
+        assertFormat(name.size() < MAX_NAME_LEN, "\"{}\": name is longer than {}", name, MAX_NAME_LEN);
+        mNamesLen += name.size();
+        mDataSize += e.size;
+        auto res = mDataEntries.emplace(name, std::move(e));
+        assertFormat(res.second, "entry for name {} was already added", name);
     }
 
-    void addDataEntry(DataEntry e)
+    void removeDataEntry(const std::string_view& name)
     {
-        mDataEntries.push_back(e);
-        mSize += e.size;
+        auto it = mDataEntries.find(name);
+        assertFormat(it != mDataEntries.end(), "entry for {} does not exist", name);
+        auto& entry = it->second;
+        mNamesLen -= name.size();
+        mDataSize -= entry.size;
+        mDataEntries.erase(it);
+    }
+
+    ALWAYS_INLINE size_t getStringsLen() const
+    {
+        return mNamesLen;
+    }
+
+    ALWAYS_INLINE size_t getDataSize() const
+    {
+        return mDataSize;
     }
 
     ALWAYS_INLINE auto& getDataEntries()
@@ -105,117 +176,202 @@ struct Registry final : utils::Immobile
         return mDataEntries;
     }
 
-    ALWAYS_INLINE const auto& getEvents() const
-    {
-        return mEvents;
-    }
-
-    ALWAYS_INLINE size_t getSize()
-    {
-        return mSize + mEvents.size() * sizeof(uint64_t);
-    }
-
 private:
-    Registry()
-        : mSize(0)
+    ALWAYS_INLINE constexpr Registry()
+        : mNamesLen(0)
+        , mDataSize(0)
     {
     }
 
-    std::vector<DataEntry> mDataEntries;
-    std::vector<Event*> mEvents;
-    size_t mSize;
+    size_t mNamesLen;
+    size_t mDataSize;
+    std::map<std::string_view, DataEntry> mDataEntries;
 };
+
+size_t getDataEntriesSize(Registry& registry)
+{
+    return sizeof(SerializedDataEntry) * registry.getDataEntries().size()
+        + registry.getStringsLen();
+}
 
 }  // namespace
 
-void SaveSerializer::registerEvents(std::vector<Event*> events)
+void SaveSerializer::registerData(const std::string_view& name, void* data, size_t size)
 {
-    Registry::instance().addEvents(std::move(events));
+    Registry::instance().addDataEntry(
+        name,
+        DataEntry{
+            .type = DataType::Data,
+            .data = data,
+            .size = static_cast<uint32_t>(size),
+        });
 }
 
-void SaveSerializer::registerData(void* data, size_t size)
+void SaveSerializer::registerData(const std::string_view& name, Event& event)
 {
-    Registry::instance().addDataEntry(DataEntry{.data = data, .size = size});
+    Registry::instance().addDataEntry(
+        name,
+        DataEntry{
+            .type = DataType::Event,
+            .event = &event,
+            .size = sizeof(uint64_t),
+        });
 }
 
-bool SaveSerializer::removeData(void* data)
+void SaveSerializer::removeData(const std::string_view& name)
 {
-    auto& entries = Registry::instance().getDataEntries();
-    for (auto it = entries.begin(); it != entries.end(); ++it)
-    {
-        if (it->data == data)
-        {
-            entries.erase(it);
-            return true;
-        }
-    }
-    return false;
+    Registry::instance().removeDataEntry(name);
 }
 
 size_t SaveSerializer::getDataSize()
 {
-    return Registry::instance().getSize() + sizeof(HEADER);
+    auto& registry = Registry::instance();
+
+    return registry.getDataEntries().size() * sizeof(SerializedDataEntry)
+        + registry.getStringsLen()
+        + registry.getDataSize();
 }
 
 SerializationResult SaveSerializer::serialize()
 {
     auto& registry = Registry::instance();
     Writer writer(getDataSize());
-    writer.write(HEADER, sizeof(HEADER));
-    for (const auto& entry : registry.getDataEntries())
+
+    const size_t initialDataOffset = getDataEntriesSize(registry);
+
+    size_t dataOffset = initialDataOffset;
+
+    for (const auto& [name, entry] : registry.getDataEntries())
     {
-        writer.write(entry.data, entry.size);
+        const SerializedDataEntry e{
+            .sig = SIG,
+            .entryLen = static_cast<uint16_t>(sizeof(SerializedDataEntry) + name.size()),
+            .dataOffset = static_cast<uint32_t>(dataOffset),
+            .dataSize = entry.size,
+        };
+
+        dataOffset += entry.size;
+
+        writer.write(&e, sizeof(e));
+        writer.write(name.data(), name.size());
+
+        switch (entry.type)
+        {
+            case DataType::Data:
+                writer.writeAt(entry.data, e.dataOffset, entry.size);
+                break;
+            case DataType::Event:
+                uint64_t when = entry.event->isActive() ? entry.event->getWhen() : 0;
+                writer.writeAt(&when, e.dataOffset, sizeof(when));
+                break;
+        }
     }
-    for (const auto event : registry.getEvents())
-    {
-        uint64_t when = event->isActive() ? event->getWhen() : 0;
-        writer.write(&when, sizeof(when));
-    }
+
     return writer.release();
 }
 
 DeserializationResult SaveSerializer::deserialize(const void* data, size_t size)
 {
     Reader reader(data, size);
-    char header[sizeof(HEADER)]{};
-
     auto& registry = Registry::instance();
 
-    if (reader.read(header, sizeof(HEADER))) [[unlikely]]
+    if (size != getDataSize()) [[unlikely]]
     {
-        goto unexpectedEof;
+        return error("incorrect save size");
     }
 
-    if (memcmp(header, HEADER, sizeof(HEADER))) [[unlikely]]
+    struct DeserializationEntry final
     {
-        goto incorrectHeader;
-    }
+        const size_t     dataOffset;
+        const size_t     dataSize;
+        const DataEntry& dataEntry;
+    };
 
-    for (const auto& entry : registry.getDataEntries())
+    std::vector<DeserializationEntry> toDeserialize;
+    toDeserialize.reserve(registry.getDataEntries().size());
+
+    for (size_t i = 0; i < registry.getDataEntries().size(); ++i)
     {
-        if (reader.read(entry.data, entry.size)) [[unlikely]]
+        SerializedDataEntry e;
+
+        if (reader.read(&e, sizeof(e))) [[unlikely]]
         {
             goto unexpectedEof;
         }
-    }
 
-    for (auto event : registry.getEvents())
-    {
-        uint64_t when = 0;
-        if (reader.read(&when, sizeof(when)))
+        if (e.sig != SIG) [[unlikely]]
+        {
+            return error("incorrect entry signature");
+        }
+
+        char name[MAX_NAME_LEN + 1];
+        auto nameLen = e.entryLen - sizeof(e);
+
+        if (nameLen > sizeof(name)) [[unlikely]]
+        {
+            return error("entry name too long");
+        }
+
+        if (reader.read(name, nameLen)) [[unlikely]]
         {
             goto unexpectedEof;
         }
-        if (when)
+
+        const std::string_view nameSv(name, nameLen);
+
+        const auto entryIt = registry.getDataEntries().find(nameSv);
+
+        if (entryIt == registry.getDataEntries().end()) [[unlikely]]
         {
-            gb.events.scheduleEvent(*event, when);
+            return error("unexpected entry name: {}", nameSv);
+        }
+
+        const auto& entry = entryIt->second;
+
+        if (entry.size != e.dataSize) [[unlikely]]
+        {
+            return error("entry {} has incorrect data size: {}", nameSv, e.dataSize);
+        }
+
+        if (reader.validateReadAt(e.dataOffset, e.dataSize)) [[unlikely]]
+        {
+            goto unexpectedEof;
+        }
+
+        if (entry.type == DataType::Event and e.dataSize != sizeof(uint64_t)) [[unlikely]]
+        {
+            return error("incorrect event data size");
+        }
+
+        toDeserialize.emplace_back(DeserializationEntry{e.dataOffset, e.dataSize, entry});
+    }
+
+    if (reader.getCurrent() != getDataEntriesSize(registry)) [[unlikely]]
+    {
+        return error("size of entries is incorrect");
+    }
+
+    for (const auto& e : toDeserialize)
+    {
+        switch (e.dataEntry.type)
+        {
+            case DataType::Data:
+                reader.readAt(e.dataEntry.data, e.dataOffset, e.dataSize);
+                break;
+
+            case DataType::Event:
+                uint64_t when = 0;
+                reader.readAt(&when, e.dataOffset, e.dataSize);
+                if (when)
+                {
+                    gb.events.scheduleEvent(*e.dataEntry.event, when);
+                }
+                break;
         }
     }
 
     return {};
 
 unexpectedEof:
-    return std::unexpected("Data too short");
-incorrectHeader:
-    return std::unexpected("Incorrect header");
+    return error("data too short");
 }

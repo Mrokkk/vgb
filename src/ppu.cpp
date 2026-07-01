@@ -197,10 +197,14 @@ Ppu::Ppu()
         .callback = [this](size_t){ mode3Callback(); }
     }))
 {
-    SaveSerializer::registerData(io.data);
-    SaveSerializer::registerData(bgPalette);
-    SaveSerializer::registerData(objPalette);
-    SaveSerializer::registerEvents({&dma, &mode0, &mode1, &mode2, &mode3});
+    SaveSerializer::registerData("ppu.io", io.data);
+    SaveSerializer::registerData("ppu.bgPalette", bgPalette);
+    SaveSerializer::registerData("ppu.objPalette", objPalette);
+    SaveSerializer::registerData("ppu.dma", dma);
+    SaveSerializer::registerData("ppu.mode0", mode0);
+    SaveSerializer::registerData("ppu.mode1", mode1);
+    SaveSerializer::registerData("ppu.mode2", mode2);
+    SaveSerializer::registerData("ppu.mode3", mode3);
     initPpu();
 }
 

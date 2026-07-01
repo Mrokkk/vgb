@@ -29,15 +29,14 @@ static Event ei = Event::oneShot({
 SM83::SM83()
 {
     clear();
-    SaveSerializer::registerData(regs);
-    SaveSerializer::registerData(lastRegs);
-    SaveSerializer::registerData(reinterpret_cast<void*>(&exc), sizeof(exc));
-    SaveSerializer::registerData(state);
-    SaveSerializer::registerData(cycles);
-    SaveSerializer::registerData(instructions);
-    SaveSerializer::registerData(reinterpret_cast<void*>(&mem), sizeof(mem));
-    SaveSerializer::registerData(callstack);
-    SaveSerializer::registerEvents({&ei});
+    SaveSerializer::registerData("cpu.regs", regs);
+    SaveSerializer::registerData("cpu.lastRegs", lastRegs);
+    SaveSerializer::registerData("cpu.exc", reinterpret_cast<void*>(&exc), sizeof(exc));
+    SaveSerializer::registerData("cpu.state", state);
+    SaveSerializer::registerData("cpu.cycles", cycles);
+    SaveSerializer::registerData("cpu.instruction", instructions);
+    SaveSerializer::registerData("cpu.callstack", callstack);
+    SaveSerializer::registerData("cpu.ei", ei);
 }
 
 SM83::~SM83() = default;
