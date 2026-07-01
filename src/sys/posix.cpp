@@ -444,13 +444,15 @@ std::vector<Font> getFonts()
             std::string fontStyle(reinterpret_cast<char*>(style));
             std::string fontFamily(reinterpret_cast<char*>(family));
 
-            if (fontPath.extension() == ".ttf")
+            const auto extension = fontPath.extension();
+
+            if (extension == ".ttf")
             {
                 auto& f = familyToFonts[fontFamily];
                 f.family = std::move(fontFamily);
                 f.styles.emplace_back(std::move(fontPath.native()), std::move(fontStyle));
             }
-            else if (fontPath.extension() == ".otf")
+            else if (extension == ".otf")
             {
                 auto& f = familyToFonts[fontFamily];
                 f.family = std::move(fontFamily);
@@ -460,6 +462,9 @@ std::vector<Font> getFonts()
     }
 
     FcFontSetDestroy(fs);
+    FcPatternDestroy(pat);
+    FcObjectSetDestroy(os);
+    FcConfigDestroy(config);
 
     Fonts fonts;
 
