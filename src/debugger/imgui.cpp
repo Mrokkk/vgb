@@ -1357,7 +1357,7 @@ static void drawMessages(Context& ctx)
     ImGui::PopStyleColor();
 }
 
-void frame(unsigned int gameTextureId)
+void renderUI(unsigned int gameTextureId)
 {
     const auto dockspaceId = ImGui::GetID("vgb dockspace");
     const auto viewport = ImGui::GetMainViewport();

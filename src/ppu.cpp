@@ -6,7 +6,6 @@
 #include <fmt/base.h>
 
 #include "component.hpp"
-#include "config.hpp"
 #include "cpu/sm83.hpp"
 #include "event.hpp"
 #include "fwd.hpp"
@@ -19,7 +18,7 @@
 
 struct Ppu final : Component
 {
-    Ppu(const Config& config);
+    Ppu();
 
     void reset() override;
 
@@ -49,7 +48,6 @@ struct Ppu final : Component
         uint8_t load(uint8_t addr) const;
     };
 
-    bool      graphical;
     Event     dma;
     Event     mode0;
     Event     mode1;
@@ -168,9 +166,8 @@ struct Ppu::IOImpl
     uint8_t wx;
 };
 
-Ppu::Ppu(const Config& config)
-    : graphical(config.videoConfig == VideoConfig::Graphical)
-    , dma(Event::oneShot({
+Ppu::Ppu()
+    : dma(Event::oneShot({
         .name = "OAM DMA",
         .prio = 0,
         .callback = [this](size_t){ dmaCallback(); }
@@ -505,5 +502,5 @@ uint8_t Ppu::IO::load(uint8_t addr) const
 
 void createPpu(GameBoy& gb)
 {
-    gb.registerComponent(Component::Ppu, utils::makeUnique<Ppu>(gb.config));
+    gb.registerComponent(Component::Ppu, utils::makeUnique<Ppu>());
 }

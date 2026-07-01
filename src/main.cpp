@@ -33,9 +33,8 @@ int main(int argc, char* argv[])
         .cartridgePath = cmdl[1],
         .cartridgeRamPath = createRamFilePath(cmdl[1]),
         .skipBootRom = cmdl[{"-f", "--skip-boot"}],
-        .useDebugger = cmdl[{"-g", "--debugger"}],
         .useSupervision = true,
-        .videoConfig = VideoConfig::Graphical
+        .mode = cmdl[{"-g", "--debugger"}] ? Mode::Debugger : Mode::Minimal
     };
 
     sys::initialize(gb.config);
@@ -65,7 +64,7 @@ int main(int argc, char* argv[])
 
     gb.load(mappedRom->getData(), mappedRam.getData(), gb.config);
 
-    if (gb.config.useDebugger)
+    if (gb.config.mode == Mode::Debugger)
     {
         debugger::main(gb);
     }

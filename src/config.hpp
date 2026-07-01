@@ -2,10 +2,11 @@
 
 #include <string>
 
-enum class VideoConfig
+enum class Mode
 {
-    Graphical,
     Headless,
+    Minimal,
+    Debugger
 };
 
 struct Config final
@@ -13,7 +14,6 @@ struct Config final
     std::string cartridgePath;
     std::string cartridgeRamPath;
     bool        skipBootRom;
-    bool        useDebugger;
     bool        useSupervision;
-    VideoConfig videoConfig;
+    Mode        mode;
 };

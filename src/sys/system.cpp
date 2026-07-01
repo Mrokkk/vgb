@@ -45,7 +45,7 @@ void initialize(const Config& config)
         initSupervision();
     }
 
-    if (config.videoConfig == VideoConfig::Graphical)
+    if (config.mode != Mode::Headless)
     {
         raylib::createRenderer();
         raylib::createInput();

@@ -1,10 +1,11 @@
 #include "supervision.hpp"
 
 #include <atomic>
-#include <csignal>
 #include <thread>
 
 #include <fmt/base.h>
+
+#include "sys/platform.hpp"
 
 namespace sys
 {
@@ -31,9 +32,8 @@ static void supervision()
         {
             if (++failed == 5)
             {
-                auto pid = getpid();
-                fmt::println("Main thread ({}) is not responding", pid);
-                kill(pid, SIGABRT);
+                fmt::println("Main thread is not responding");
+                platform.abort();
                 break;
             }
         }

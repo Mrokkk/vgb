@@ -12,7 +12,7 @@ int main(int argc, char** argv)
     gb.config = {
         .skipBootRom = true,
         .useSupervision = false,
-        .videoConfig = VideoConfig::Headless,
+        .mode = Mode::Headless,
     };
 
     sys::initialize(gb.config);

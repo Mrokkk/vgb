@@ -7,6 +7,7 @@
 #include <raylib.h>
 #include <rlImGui.h>
 
+#include "config.hpp"
 #include "core/logger.hpp"
 #include "debugger/main.hpp"
 #include "game_boy.hpp"
@@ -83,7 +84,7 @@ RaylibRenderer::RaylibRenderer()
     mScreenImage = GenImageColor(GB_LCD_RESX, GB_LCD_RESY, DARKGRAY);
     mScreenTexture = LoadTextureFromImage(mScreenImage);
 
-    if (gb.config.useDebugger)
+    if (gb.config.mode == Mode::Debugger)
     {
         mMapImage = GenImageColor(256, 256, DARKGRAY);
         mMapTexture = LoadTextureFromImage(mMapImage);
@@ -118,11 +119,11 @@ void RaylibRenderer::render()
     {
         ClearBackground(DARKGRAY);
 
-        if (gb.config.useDebugger)
+        if (gb.config.mode == Mode::Debugger)
         {
             IMGUI()
             {
-                debugger::frame(mScreenTexture.id);
+                debugger::renderUI(mScreenTexture.id);
             }
         }
         else

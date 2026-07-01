@@ -6,6 +6,6 @@ namespace debugger
 {
 
 void main(GameBoy& gb);
-void frame(unsigned int gameTextureId);
+void renderUI(unsigned int gameTextureId);
 
 }  // namespace debugger
