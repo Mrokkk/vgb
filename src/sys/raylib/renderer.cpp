@@ -96,6 +96,14 @@ RaylibRenderer::RaylibRenderer()
 
 RaylibRenderer::~RaylibRenderer()
 {
+    UnloadTexture(mScreenTexture);
+    UnloadImage(mScreenImage);
+    if (gb.config.mode == Mode::Debugger)
+    {
+        UnloadTexture(mMapTexture);
+        UnloadImage(mMapImage);
+        rlImGuiShutdown();
+    }
     CloseWindow();
 }
 
