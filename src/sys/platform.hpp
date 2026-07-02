@@ -31,6 +31,8 @@ struct Platform
     Fonts       (*getFonts)();
     MaybeMapped (*mapFileImpl)(const char* pathname, bool readOnly);
     MaybeError  (*unmapFileImpl)(void* ptr, size_t size);
+    double      (*getCpuUsage)();
+    size_t      (*getAllocUsage)();
 
     RendererPtr renderer;
     InputPtr    input;

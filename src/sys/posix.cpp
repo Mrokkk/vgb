@@ -5,11 +5,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <cxxabi.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <filesystem>
 #include <iterator>
+#include <malloc.h>
 #include <map>
 #include <stdio.h>
 #include <string>
@@ -397,7 +399,7 @@ static MaybeError writeToFile(const char* pathname, const void* data, size_t siz
     return true;
 }
 
-std::string getConfigDir()
+static std::string getConfigDir()
 {
     const auto home = std::getenv("HOME");
 
@@ -415,7 +417,7 @@ std::string getConfigDir()
     return {path};
 }
 
-std::vector<Font> getFonts()
+static std::vector<Font> getFonts()
 {
     auto config = FcInitLoadConfigAndFonts();
     auto pat = FcPatternCreate();
@@ -424,6 +426,9 @@ std::vector<Font> getFonts()
 
     if (not fs) [[unlikely]]
     {
+        if (pat)    FcPatternDestroy(pat);
+        if (os)     FcObjectSetDestroy(os);
+        if (config) FcConfigDestroy(config);
         return {};
     }
 
@@ -474,6 +479,47 @@ std::vector<Font> getFonts()
     }
 
     return fonts;
+}
+
+static int64_t operator-(const struct timespec& start, const struct timespec& end)
+{
+    return (end.tv_sec - start.tv_sec) * 1000000000 + end.tv_nsec - start.tv_nsec;
+}
+
+static double getCpuUsage()
+{
+    static struct timespec prevTime;
+    static struct timespec prevCpuTime;
+
+    struct timespec currentTime;
+    struct timespec currentCpuTime;
+
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &currentCpuTime);
+
+    float cpuUsage = 0.f;
+
+    if (prevTime.tv_sec == 0 and prevTime.tv_nsec == 0) [[unlikely]]
+    {
+        goto finish;
+    }
+
+    {
+        auto timeDiff = currentTime - prevTime;
+        auto cpuTimeDiff = currentCpuTime - prevCpuTime;
+        cpuUsage = double(cpuTimeDiff) / double(timeDiff);
+    }
+
+finish:
+    prevTime = currentTime;
+    prevCpuTime = currentCpuTime;
+    return cpuUsage * 100;
+}
+
+static size_t getAllocUsage()
+{
+    const auto m = mallinfo2();
+    return m.arena + m.hblkhd;
 }
 
 void initialize(const Config&)
@@ -528,6 +574,8 @@ void initialize(const Config&)
     platform.getFonts            = &getFonts;
     platform.mapFileImpl         = &mapFileImpl;
     platform.unmapFileImpl       = &unmapFileImpl;
+    platform.getCpuUsage         = &getCpuUsage;
+    platform.getAllocUsage       = &getAllocUsage;
 }
 
 }  // namespace sys::posix

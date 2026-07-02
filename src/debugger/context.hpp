@@ -34,29 +34,30 @@ struct Message final
 
 struct GUI final
 {
-    INI_SAVED(bool, commandEntered);
-    INI_SAVED(bool, emulationWindow);
-    INI_SAVED(bool, cartridgeWindow);
-    INI_SAVED(bool, cpuWindow);
-    INI_SAVED(bool, consoleWindow);
-    INI_SAVED(bool, mapWindow);
-    INI_SAVED(bool, showScxScy);
-    INI_SAVED(bool, styleEditorWindow);
-    INI_SAVED(bool, ioWindow);
-    INI_SAVED(bool, gameWindow);
-    INI_SAVED(bool, focusCmdLine);
-    INI_SAVED(bool, demoWindow);
-    INI_SAVED(bool, logWindow);
-    INI_SAVED(bool, disassemblyWindow);
-    INI_SAVED(bool, callstackWindow);
-    INI_SAVED(uint32_t, messageTime);
-    INI_SAVED(uint32_t, messageFadeOutTime);
+    INI_SAVED(bool,        commandEntered);
+    INI_SAVED(bool,        emulationWindow);
+    INI_SAVED(bool,        cartridgeWindow);
+    INI_SAVED(bool,        cpuWindow);
+    INI_SAVED(bool,        consoleWindow);
+    INI_SAVED(bool,        mapWindow);
+    INI_SAVED(bool,        showScxScy);
+    INI_SAVED(bool,        styleEditorWindow);
+    INI_SAVED(bool,        ioWindow);
+    INI_SAVED(bool,        gameWindow);
+    INI_SAVED(bool,        focusCmdLine);
+    INI_SAVED(bool,        demoWindow);
+    INI_SAVED(bool,        logWindow);
+    INI_SAVED(bool,        disassemblyWindow);
+    INI_SAVED(bool,        callstackWindow);
+    INI_SAVED(bool,        systemStatsWindow);
+    INI_SAVED(uint32_t,    messageTime);
+    INI_SAVED(uint32_t,    messageFadeOutTime);
     INI_SAVED(std::string, fontFamily);
     INI_SAVED(std::string, fontStyle);
-    INI_SAVED(float, fontSize);
+    INI_SAVED(float,       fontSize);
 
     bool                  configWindow;
-    size_t                counter;
+    size_t                frameCounter;
     float                 ips;
     float                 mhz;
     float                 sumIps;

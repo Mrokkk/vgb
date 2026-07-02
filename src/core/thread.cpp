@@ -14,4 +14,9 @@ void async(Task task)
     std::thread(std::move(task)).detach();
 }
 
+unsigned hardwareThreadCount()
+{
+    return std::thread::hardware_concurrency();
+}
+
 }  // namespace core

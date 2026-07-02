@@ -27,7 +27,9 @@
 #include "save_manager.hpp"
 #include "sys/font.hpp"
 #include "sys/platform.hpp"
+#include "utils/fixed_ring_buffer.hpp"
 #include "utils/inline.hpp"
+#include "utils/ring_buffer_impl.hpp"
 #include "utils/unique_ptr.hpp"
 #include "utils/units.hpp"
 
@@ -551,7 +553,7 @@ ALWAYS_INLINE static void drawMenuBar(Context& ctx)
 {
     auto mainMenu = ImGui::CreateMainMenuBar();
 
-    if (not mainMenu)
+    if (not mainMenu) [[unlikely]]
     {
         return;
     }
@@ -607,6 +609,7 @@ ALWAYS_INLINE static void drawMenuBar(Context& ctx)
         BOOL_MENU_ITEM("Console", "`", ctx.gui.consoleWindow);
         BOOL_MENU_ITEM("Game", nullptr, ctx.gui.gameWindow);
         BOOL_MENU_ITEM("Log", nullptr, ctx.gui.logWindow);
+        BOOL_MENU_ITEM("System stats", nullptr, ctx.gui.systemStatsWindow);
         BOOL_MENU_ITEM("Style Editor", nullptr, ctx.gui.styleEditorWindow);
         BOOL_MENU_ITEM("Demo", nullptr, ctx.gui.demoWindow);
     }
@@ -655,6 +658,9 @@ ALWAYS_INLINE static void drawCartridgeWindow(Context& ctx)
     ImGui::Text("RAM size: %zu %s", ramSize.value, ramSize.unit);
 }
 
+#define ONCE_PER_X_FRAMES(INTERVAL) \
+    if (ctx.gui.frameCounter % INTERVAL == 0)
+
 ALWAYS_INLINE static void drawCpuWindow(Context& ctx)
 {
     CREATE_WINDOW("CPU", ctx.gui.cpuWindow);
@@ -697,18 +703,22 @@ ALWAYS_INLINE static void drawCpuWindow(Context& ctx)
 
     ImGui::SeparatorText("Stats");
     {
+        constexpr size_t updateInterval = 60;
         auto deltaTime = ImGui::GetIO().DeltaTime;
-        if (ctx.gui.counter++ == 60)
+        ONCE_PER_X_FRAMES(updateInterval)
         {
-            ctx.gui.counter = 0;
-            ctx.gui.ips = ctx.gui.sumIps / 60;
-            ctx.gui.mhz = ctx.gui.sumMhz / 60;
+            ctx.gui.ips = ctx.gui.sumIps / updateInterval;
+            ctx.gui.mhz = ctx.gui.sumMhz / updateInterval;
             ctx.gui.sumIps = 0;
             ctx.gui.sumMhz = 0;
         }
 
-        ctx.gui.sumIps += (gb.cpu.instructions - ctx.gui.prevInstructions) / deltaTime;
-        ctx.gui.sumMhz += (gb.cpu.cycles - ctx.gui.prevCycles) / deltaTime;
+        if (gb.cpu.instructions > ctx.gui.prevInstructions) [[likely]]
+        {
+            ctx.gui.sumIps += (gb.cpu.instructions - ctx.gui.prevInstructions) / deltaTime;
+            ctx.gui.sumMhz += (gb.cpu.cycles - ctx.gui.prevCycles) / deltaTime;
+        }
+
         ctx.gui.prevInstructions = gb.cpu.instructions;
         ctx.gui.prevCycles = gb.cpu.cycles;
 
@@ -808,7 +818,7 @@ ALWAYS_INLINE static void drawConsoleWindow(Context& ctx)
         ctx.gui.commandEntered = false;
     }
 
-    if (ImGui::InputText("#CmdLine", ctx.gui.lineBuffer, sizeof(ctx.gui.lineBuffer), ImGuiInputTextFlags_EnterReturnsTrue))
+    if (ImGui::InputText("##CmdLine", ctx.gui.lineBuffer, sizeof(ctx.gui.lineBuffer), ImGuiInputTextFlags_EnterReturnsTrue))
     {
         ctx.gui.commandEntered = true;
 
@@ -1237,6 +1247,64 @@ static void drawViewConfig(Context& ctx, ImGuiIO& io)
     }
 }
 
+static utils::FixedRingBuffer<float, 30> cpuUsagePlotData;
+static utils::FixedRingBuffer<float, 30> allocUsagePlotData;
+
+static float getCpuUsageAt(void*, int idx)
+{
+    return cpuUsagePlotData[idx];
+}
+
+static float getAllocUsageAt(void*, int idx)
+{
+    return allocUsagePlotData[idx];
+}
+
+ALWAYS_INLINE static void drawSystemStatsWindow(Context& ctx)
+{
+    CREATE_WINDOW("System stats", ctx.gui.systemStatsWindow);
+
+    if (not sys::platform.getCpuUsage) [[unlikely]]
+    {
+        ImGui::TextDisabled("Unsupported by platform");
+        return;
+    }
+
+    constexpr size_t updateInterval = 60;
+
+    static double cpuUsage = 0;
+    static size_t allocSize = 0;
+    static const char* allocUnit;
+
+    ONCE_PER_X_FRAMES(updateInterval)
+    {
+        cpuUsage = sys::platform.getCpuUsage();
+
+        if (cpuUsagePlotData.size() == 0) [[unlikely]]
+        {
+            for (size_t i = 0; i < cpuUsagePlotData.capacity(); ++i)
+            {
+                cpuUsagePlotData.pushBack(0.f);
+                allocUsagePlotData.pushBack(0.f);
+            }
+        }
+
+        cpuUsagePlotData.pushBack(cpuUsage);
+
+        const auto allocUsage = sys::platform.getAllocUsage();
+        auto res = utils::humanReadable(allocUsage);
+        allocSize = res.value;
+        allocUnit = res.unit;
+
+        allocUsagePlotData.pushBack(float(allocUsage) / MiB);
+    }
+
+    ImGui::Text("CPU usage: %0.1f%% (of single core)", cpuUsage);
+    ImGui::PlotHistogram("##CPU usage", &getCpuUsageAt, nullptr, cpuUsagePlotData.size(), 0, nullptr, 0.f, 100.f, ImVec2{0, 80});
+    ImGui::Text("Alloc usage: %zu %s", allocSize, allocUnit);
+    ImGui::PlotHistogram("##Alloc usage", &getAllocUsageAt, nullptr, allocUsagePlotData.size(), 0, nullptr, 0.f, 80, ImVec2{0, 80});
+}
+
 ALWAYS_INLINE static void drawConfigWindow(Context& ctx)
 {
     if (not ctx.gui.configWindow)
@@ -1380,6 +1448,7 @@ void renderUI(unsigned int gameTextureId)
     drawEmulationWindow(ctx);
     drawDisassemblyWindow(ctx);
     drawCallstackWindow(ctx);
+    drawSystemStatsWindow(ctx);
 
     if (ctx.gui.demoWindow)
     {
@@ -1397,6 +1466,8 @@ void renderUI(unsigned int gameTextureId)
             ctx.gui.focusCmdLine = true;
         }
     }
+
+    ctx.gui.frameCounter++;
 }
 
 }  // namespace debugger
