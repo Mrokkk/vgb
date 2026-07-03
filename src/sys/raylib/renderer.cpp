@@ -9,7 +9,7 @@
 
 #include "config.hpp"
 #include "core/logger.hpp"
-#include "debugger/main.hpp"
+#include "debugger/gui/main.hpp"
 #include "game_boy.hpp"
 #include "ppu.hpp"
 #include "save_serializer.hpp"
@@ -131,7 +131,7 @@ void RaylibRenderer::render()
         {
             IMGUI()
             {
-                debugger::renderUI(mScreenTexture.id);
+                debugger::gui::render(mScreenTexture.id);
             }
         }
         else

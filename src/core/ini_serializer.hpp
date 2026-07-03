@@ -5,6 +5,7 @@
 #include <expected>
 #include <string_view>
 
+#include "utils/consteval_string.hpp"
 #include "utils/inline.hpp"
 
 namespace core
@@ -54,18 +55,7 @@ struct IniSerializer final
     static DeserializationResult deserializeLine(std::string_view line);
 };
 
-template <std::size_t N>
-struct ConstevalString
-{
-    consteval ConstevalString(const char (&string)[N])
-    {
-        std::copy_n(string, N, data);
-    }
-
-    char data[N];
-};
-
-template <typename T, ConstevalString Name>
+template <typename T, utils::ConstevalString Name>
 struct IniSaved final
 {
     constexpr IniSaved()

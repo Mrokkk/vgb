@@ -72,7 +72,7 @@ inline bool WasWindowClicked(int button)
     return ImGui::IsWindowFocused() and ImGui::IsMouseReleased(button);
 }
 
-constexpr ImVec4 ColorFromHex(uint32_t color, float alpha = 1.0f)
+constexpr inline ImVec4 ColorFromHex(uint32_t color, float alpha = 1.0f)
 {
     return ImVec4{
         ((color >> 16) & 0xff) / 255.0f,
@@ -81,5 +81,32 @@ constexpr ImVec4 ColorFromHex(uint32_t color, float alpha = 1.0f)
         alpha,
     };
 }
+
+inline void BoolMenuItem(const char* name, const char* shortcut, bool& condition)
+{
+    if (ImGui::MenuItem(name, shortcut, condition))
+    {
+        condition ^= true;
+    }
+}
+
+inline void BoolMenuItem(const char* name, const char* shortcut, bool* condition)
+{
+    if (ImGui::MenuItem(name, shortcut, *condition))
+    {
+        *condition ^= true;
+    }
+}
+
+template <typename T, typename U = T>
+void IntegerMenuItem(const char* name, const char* shortcut, T& variable, U value)
+{
+    if (ImGui::MenuItem(name, shortcut, variable == value))
+    {
+        variable = value;
+    }
+}
+
+void ImageCentered(ImTextureID texture, size_t ratioX, size_t ratioY);
 
 }  // namespace ImGui

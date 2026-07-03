@@ -74,12 +74,28 @@ add_library(emulator OBJECT
     src/debugger/commands/watch.cpp
     src/debugger/games/pokemon_red.cpp
     src/debugger/games/registry.cpp
-    src/debugger/imgui.cpp
+    src/debugger/gui/callstack_window.cpp
+    src/debugger/gui/cartridge_window.cpp
+    src/debugger/gui/config_window.cpp
+    src/debugger/gui/console_window.cpp
+    src/debugger/gui/cpu_window.cpp
+    src/debugger/gui/disassembly_window.cpp
+    src/debugger/gui/emulation_window.cpp
+    src/debugger/gui/game_window.cpp
+    src/debugger/gui/io_window.cpp
+    src/debugger/gui/lcd_window.cpp
+    src/debugger/gui/log_window.cpp
+    src/debugger/gui/main.cpp
+    src/debugger/gui/map_window.cpp
+    src/debugger/gui/memory_window.cpp
+    src/debugger/gui/messages.cpp
+    src/debugger/gui/system_stats_window.cpp
     src/debugger/main.cpp
     src/debugger/printer.cpp
     src/debugger/symbols_map.cpp
     src/error.cpp
     src/event_system.cpp
+    src/ext/imgui_ext.cpp
     src/game_boy.cpp
     src/interpreter/command.cpp
     src/interpreter/interpreter.cpp

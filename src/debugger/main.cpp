@@ -8,7 +8,7 @@
 #include "cpu/sm83.hpp"
 #include "debugger/context.hpp"
 #include "debugger/games/registry.hpp"
-#include "debugger/imgui.hpp"
+#include "debugger/gui/main.hpp"
 #include "debugger/printer.hpp"
 #include "game_boy.hpp"
 #include "interpreter/command.hpp"
@@ -98,7 +98,7 @@ void main(GameBoy& gb)
     };
 
     ctx.symbols.initialize(ctx);
-    initImGui(ctx);
+    gui::init(ctx);
     ctx.console.addLine("Debugger mode");
     ctx.console.addLine("For help, type \"help\"");
 
@@ -143,7 +143,7 @@ void main(GameBoy& gb)
     }
 
 finish:
-    deinitImGui(ctx);
+    gui::deinit(ctx);
     gb.debuggerData = nullptr;
 }
 
