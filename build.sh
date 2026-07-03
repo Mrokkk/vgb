@@ -116,6 +116,9 @@ read_flags()
                 fi
                 BUILD_TESTS="${temp}"
                 ;;
+            -j*)
+                NINJA_FLAGS+="${1}"
+                ;;
             build|run|test)
                 COMMAND="${1}"
                 shift
@@ -152,9 +155,9 @@ build_target()
     if [ -f build.ninja ]
     then
         local ts="$(date +%s)"
-        ninja "${1}"
+        ninja ${@}
         info "Build stats:"
-        #${BASE_DIR}/ninja_log_parse.py ".ninja_log" "${ts}"
+        ${BASE_DIR}/scripts/ninja_log_parse.py ".ninja_log" "${ts}"
     else
         die "CMake build was not generated"
     fi
@@ -230,6 +233,7 @@ fi
 
 declare -a ARGS
 COMMAND=
+NINJA_FLAGS=
 OPTIMIZE="ON"
 LTO="OFF"
 COVERAGE="OFF"
@@ -249,17 +253,17 @@ case "${COMMAND}" in
         ;;
     run)
         shift
-        build_target vgb
+        build_target "vgb" "${NINJA_FLAGS}"
         run_command "${BUILD_DIR}/vgb" "${ARGS[@]}"
         ;;
     test)
         shift
         if [ "${COVERAGE}" == "ON" ]
         then
-            build_target test
+            build_target "test" "${NINJA_FLAGS}"
             ninja tests-cov-html
         else
-            build_target test
+            build_target "test" "${NINJA_FLAGS}"
             run_command "${BUILD_DIR}/test/test" "${ARGS}"
         fi
         ;;
