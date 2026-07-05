@@ -38,7 +38,6 @@ file(GLOB INSTRUCTIONS "src/cpu/isa/instructions/*.cpp")
 
 # https://gitlab.kitware.com/cmake/cmake/-/work_items/18090
 set(LIBRARIES
-    argh
     fmt
     raylib
     imgui
@@ -126,7 +125,7 @@ target_include_directories(emulator PUBLIC src)
 target_link_libraries(emulator PUBLIC ${LIBRARIES})
 
 add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PUBLIC emulator ${LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE emulator ${LIBRARIES} argh)
 
 if(SANITIZE)
     set_source_files_properties(src/cpu/isa/instruction_set.cpp PROPERTIES COMPILE_OPTIONS -fno-var-tracking-assignments)

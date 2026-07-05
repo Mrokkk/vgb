@@ -143,8 +143,11 @@ TEST_CASE_FIXTURE(Fixture, "Instructions")
             loadRom(data[i].rom, sizeof(data[i]));
             gb.run();
             CHECK_EQ(gb.cpu.exc.type, cpu::Exception::InfiniteLoop);
-            auto str = readTestOutput();
-            CHECK(str.contains("Passed"));
+            auto testOutput = readTestOutput();
+            if (not testOutput.contains("Passed")) [[unlikely]]
+            {
+                FAIL_CHECK("Failed test; output:\n", testOutput);
+            }
         }
     }
 }

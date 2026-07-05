@@ -7,6 +7,8 @@
 #include "sys/path.hpp"
 #include "test/tools/base_fixture.hpp"
 
+using namespace std::literals::string_view_literals;
+
 namespace test::tools
 {
 
@@ -109,7 +111,7 @@ TEST_CASE_FIXTURE(tools::BaseFixture, "PlatformFake")
         {
             auto res = sys::mapFile("/somedir/nextdir/file");
             REQUIRE(res);
-            CHECK_EQ((const char*)res->getData(), content);
+            CHECK_EQ((const char*)res->getData(), std::string_view(content));
             CHECK_EQ(res->getSize(), sizeof(content));
         }
     }
@@ -137,10 +139,10 @@ TEST_CASE_FIXTURE(tools::BaseFixture, "PlatformFake")
                 return std::string_view(e1.name) < std::string_view(e2.name);
             });
         REQUIRE_EQ(dirEntries.size(), 4);
-        CHECK_EQ(dirEntries[0].name, "dir1");
-        CHECK_EQ(dirEntries[1].name, "dir2");
-        CHECK_EQ(dirEntries[2].name, "file1");
-        CHECK_EQ(dirEntries[3].name, "file2");
+        CHECK_EQ(dirEntries[0].name, "dir1"sv);
+        CHECK_EQ(dirEntries[1].name, "dir2"sv);
+        CHECK_EQ(dirEntries[2].name, "file1"sv);
+        CHECK_EQ(dirEntries[3].name, "file2"sv);
     }
 
     SUBCASE("can try to read file as directory")
