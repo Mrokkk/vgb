@@ -1,10 +1,13 @@
 #include "cartridge.hpp"
 
 #include <cstdint>
+#include <fmt/base.h>
 
 #include "game_boy.hpp"
 #include "memory/memory_map.hpp"
 #include "save_serializer.hpp"
+#include "sys/platform.hpp"
+#include "utils/units.hpp"
 
 namespace memory
 {
@@ -71,41 +74,32 @@ static void copyTitle(const char* from, char* to)
     to[i] = '\0';
 }
 
-void Cartridge::initialize(void* rom, void* ram)
+void Cartridge::initialize(const Config& config)
 {
-    if (mRam)
-    {
-        SaveSerializer::removeData("cartridge.mRam");
-    }
-    mRom     = static_cast<uint8_t*>(rom);
-    mRomSize = romSize(mHeader);
-    mRamSize = ramSize(mHeader);
-    if (ram)
-    {
-        mRam = static_cast<uint8_t*>(ram);
-    }
-    else
-    {
-        mRam = mRamSize
-            ? new uint8_t[mRamSize]
-            : nullptr;
-        mAllocatedRam = !!mRam;
-    }
-    mMBC     = MBC();
-    mBanks   = (mRomSize + 1) / MEMORY_BANK_SIZE;
-    copyTitle(mHeader->title, mTitle);
+    auto mappedRom = sys::mapFile(config.cartridgePath.c_str(), false);
 
-    if (not mDataRegistered)
+    if (not mappedRom) [[unlikely]]
     {
-        SaveSerializer::registerData("cartridge.mRamEnabled", mRamEnabled);
-        SaveSerializer::registerData("cartridge.mBank", mBank);
-        SaveSerializer::registerData("cartridge.mRamBank", mRamBank);
-        if (mRam)
-        {
-            SaveSerializer::registerData("cartridge.mRam", mRam, mRamSize);
-        }
-        mDataRegistered = true;
+        fmt::println(stderr, "{}: cannot map: {}", config.cartridgePath, mappedRom.error());
+        return;
     }
+
+    mMappedRom = std::move(*mappedRom);
+
+    if (sys::isFile(config.cartridgeRamPath.c_str()))
+    {
+        auto result = sys::mapFile(config.cartridgeRamPath.c_str(), false);
+
+        if (not result) [[unlikely]]
+        {
+            fmt::println(stderr, "{}: cannot map: {}", config.cartridgeRamPath, result.error());
+            return;
+        }
+
+        mMappedRam = std::move(*result);
+    }
+
+    initialize(mMappedRom.getData(), mMappedRam.getData());
 }
 
 void Cartridge::reset()
@@ -318,6 +312,43 @@ MBC Cartridge::MBC() const
 
         default:
             return MBC::NoMBC;
+    }
+}
+
+void Cartridge::initialize(void* rom, void* ram)
+{
+    if (mRam)
+    {
+        SaveSerializer::removeData("cartridge.mRam");
+    }
+    mRom     = static_cast<uint8_t*>(rom);
+    mRomSize = romSize(mHeader);
+    mRamSize = ramSize(mHeader);
+    if (ram)
+    {
+        mRam = static_cast<uint8_t*>(ram);
+    }
+    else
+    {
+        mRam = mRamSize
+            ? new uint8_t[mRamSize]
+            : nullptr;
+        mAllocatedRam = !!mRam;
+    }
+    mMBC     = MBC();
+    mBanks   = (mRomSize + 1) / MEMORY_BANK_SIZE;
+    copyTitle(mHeader->title, mTitle);
+
+    if (not mDataRegistered)
+    {
+        SaveSerializer::registerData("cartridge.mRamEnabled", mRamEnabled);
+        SaveSerializer::registerData("cartridge.mBank", mBank);
+        SaveSerializer::registerData("cartridge.mRamBank", mRamBank);
+        if (mRam)
+        {
+            SaveSerializer::registerData("cartridge.mRam", mRam, mRamSize);
+        }
+        mDataRegistered = true;
     }
 }
 

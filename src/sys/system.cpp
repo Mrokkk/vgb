@@ -47,7 +47,7 @@ void initialize(const Config& config)
 
     if (config.mode != Mode::Headless)
     {
-        raylib::createRenderer();
+        raylib::createRenderer(config);
         raylib::createInput();
     }
     else

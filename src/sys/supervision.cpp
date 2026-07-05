@@ -33,7 +33,7 @@ static void supervision()
             if (++failed == 5)
             {
                 fmt::println("Main thread is not responding");
-                platform.abort();
+                platform.abortMainThread();
                 break;
             }
         }

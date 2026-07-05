@@ -62,7 +62,7 @@ void init(Context& ctx)
     initMemoryWindow(ctx);
 
     {
-        auto iniPath= sys::getDefaultConfigDir();
+        auto iniPath = sys::getDefaultConfigDir();
         iniPath += "/gui.ini";
         ctx.gui.iniPath = std::move(iniPath);
     }

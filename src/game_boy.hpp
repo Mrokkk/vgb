@@ -23,7 +23,7 @@ struct GameBoy final : utils::Immobile
     GameBoy();
     ~GameBoy();
 
-    void load(void* cartridge, void* ram, const Config& config);
+    void load(Config config);
 
     void run();
 

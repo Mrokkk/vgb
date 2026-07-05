@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <filesystem>
 #include <vector>
 
 #include <fmt/base.h>
@@ -11,6 +10,7 @@
 #include "core/thread.hpp"
 #include "debugger/context.hpp"
 #include "game_boy.hpp"
+#include "sys/path.hpp"
 #include "sys/platform.hpp"
 #include "utils/time.hpp"
 
@@ -102,9 +102,9 @@ void SymbolsMap::loadSymbols(Context& ctx)
     const auto t = utils::startTimeMeasurement();
 
     const auto& romPath = ctx.gb.config.cartridgePath;
-    std::filesystem::path p = romPath;
-    p.replace_extension(".sym");
-    auto file = sys::mapFile(p.c_str());
+    sys::Path p = romPath;
+    p.replaceExtension(".sym");
+    auto file = sys::mapFile(p.cString());
 
     if (not file)
     {

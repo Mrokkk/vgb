@@ -6,6 +6,7 @@
 #include "debugger/gui/helpers.hpp"
 #include "sys/platform.hpp"
 #include "utils/fixed_ring_buffer.hpp"
+#include "utils/units.hpp"
 
 namespace debugger::gui
 {
@@ -65,7 +66,7 @@ void drawSystemStatsWindow(Context& ctx)
     ImGui::Text("CPU usage: %0.1f%% (of single core)", cpuUsage);
     ImGui::PlotHistogram("##CPU usage", &getCpuUsageAt, nullptr, cpuUsagePlotData.size(), 0, nullptr, 0.f, 100.f, ImVec2{0, 80});
     ImGui::Text("Alloc usage: %zu %s", allocSize, allocUnit);
-    ImGui::PlotHistogram("##Alloc usage", &getAllocUsageAt, nullptr, allocUsagePlotData.size(), 0, nullptr, 0.f, 80, ImVec2{0, 80});
+    ImGui::PlotHistogram("##Alloc usage", &getAllocUsageAt, nullptr, allocUsagePlotData.size(), 0, nullptr, 0.f, FLT_MAX, ImVec2{0, 80});
 }
 
 

@@ -2,15 +2,15 @@ cmake_minimum_required(VERSION 4.0)
 
 project(vgb CXX)
 
-option(BUILD_TESTS "Build tests" ON)
+option(BUILD_TESTS "Build tests"                   ON)
 option(LTO         "Enable Link Time Optimization" OFF)
 option(OPTIMIZE    "Enable compiler optimizations" ON)
-option(SANITIZE    "Enable ASan and UBsan" OFF)
+option(SANITIZE    "Enable ASan and UBsan"         OFF)
 
-message(STATUS "Build tests: ${BUILD_TESTS}")
+message(STATUS "Build tests:                   ${BUILD_TESTS}")
 message(STATUS "Enable Link Time Optimization: ${LTO}")
 message(STATUS "Enable compiler optimizations: ${OPTIMIZE}")
-message(STATUS "Enable ASan and UBsan: ${SANITIZE}")
+message(STATUS "Enable ASan and UBsan:         ${SANITIZE}")
 
 set(CMAKE_BUILD_TYPE Debug)
 
@@ -32,7 +32,6 @@ if(LTO)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=auto")
 endif()
 
-include_directories(src)
 include_directories(SYSTEM src/ext)
 
 file(GLOB INSTRUCTIONS "src/cpu/isa/instructions/*.cpp")
@@ -109,6 +108,7 @@ add_library(emulator OBJECT
     src/save_manager.cpp
     src/save_serializer.cpp
     src/sys/mapped_file.cpp
+    src/sys/path.cpp
     src/sys/platform.cpp
     src/sys/posix.cpp
     src/sys/raylib/input.cpp
@@ -122,6 +122,7 @@ add_library(emulator OBJECT
 
     ${INSTRUCTIONS}
 )
+target_include_directories(emulator PUBLIC src)
 target_link_libraries(emulator PUBLIC ${LIBRARIES})
 
 add_executable(${PROJECT_NAME} src/main.cpp)

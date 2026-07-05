@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
-#include <filesystem>
 
 #include <zlib.h>
 
@@ -12,11 +11,12 @@
 #include "core/logger.hpp"
 #include "game_boy.hpp"
 #include "save_serializer.hpp"
+#include "sys/path.hpp"
 #include "sys/platform.hpp"
 #include "utils/source_location.hpp"
 #include "utils/units.hpp"
 
-static std::filesystem::path saveDir;
+static sys::Path saveDir;
 static std::vector<Save> saves;
 static constexpr auto quickSaveName = "quik.sav";
 
@@ -24,31 +24,31 @@ static constexpr auto quickSaveName = "quik.sav";
 
 static auto createSaveDirPath(const std::string& romFilePath)
 {
-    auto path = std::filesystem::path(romFilePath);
-    path.replace_extension(".saves");
+    auto path = sys::Path(romFilePath);
+    path.replaceExtension(".saves");
     return path;
 }
 
 static void reloadSaves()
 {
-    if (not sys::doesDirExist(saveDir.c_str()))
+    if (not sys::isDirectory(saveDir.cString()))
     {
         return;
     }
 
     try
     {
-        for (const auto& entry : std::filesystem::directory_iterator(saveDir))
+        for (const auto& entry : saveDir.readDirectory())
         {
-            if (entry.is_regular_file())
+            if (entry.info.type == sys::FileType::File)
             {
-                saves.push_back({entry.path().filename().string()});
+                saves.push_back({entry.name});
             }
         }
     }
     catch (const std::exception& e)
     {
-        core::logger.error().write("error reading {} dir: {}", saveDir.native(), e.what());
+        core::logger.error().write("error reading {} dir: {}", saveDir.string(), e.what());
     }
 }
 
@@ -62,10 +62,14 @@ void SaveManager::init(const Config& config)
 
 void SaveManager::quickSave()
 {
-    std::filesystem::path save(saveDir);
+    sys::Path save(saveDir);
     save /= quickSaveName;
 
-    std::filesystem::create_directories(saveDir);
+    if (auto res = sys::createDirectory(saveDir.cString()); not res) [[unlikely]]
+    {
+        core::logger.error().write("failed to create save dir: {}", res.error());
+        return;
+    }
 
     auto serialized = SaveSerializer::serialize();
 
@@ -84,27 +88,27 @@ void SaveManager::quickSave()
         return;
     }
 
-    auto result = sys::writeToFile(save.c_str(), buffer, compressedSize);
+    auto result = sys::writeToFile(save.cString(), buffer, compressedSize);
 
     if (not result) [[unlikely]]
     {
-        core::logger.error().write("{}: failed to save: {}", save.native(), result.error());
+        core::logger.error().write("{}: failed to save: {}", save.string(), result.error());
         return;
     }
 
-    core::logger.notice().write("saved {} with {} bytes (compressed from {})", save.native(), compressedSize, serialized->size());
+    core::logger.notice().write("saved {} with {} bytes (compressed from {})", save.string(), compressedSize, serialized->size());
 }
 
 void SaveManager::quickLoad()
 {
-    std::filesystem::path save(saveDir);
+    sys::Path save(saveDir);
     save /= quickSaveName;
 
-    auto mapped = sys::mapFile(save.c_str());
+    auto mapped = sys::mapFile(save.cString());
 
     if (not mapped) [[unlikely]]
     {
-        core::logger.error().write("{}: failed to map: {}", save.native(), mapped.error());
+        core::logger.error().write("{}: failed to map: {}", save.string(), mapped.error());
         return;
     }
 
@@ -129,7 +133,7 @@ void SaveManager::quickLoad()
                 return;
             }
 
-            core::logger.notice(utils::SourceLocation::custom(func)).write("loaded {} with {} bytes", save.native(), uncompressedSize);
+            core::logger.notice(utils::SourceLocation::custom(func)).write("loaded {} with {} bytes", save.string(), uncompressedSize);
         });
 }
 
@@ -140,5 +144,5 @@ const std::vector<Save>& SaveManager::getSaves()
 
 const std::string& SaveManager::getSaveDir()
 {
-    return saveDir.native();
+    return saveDir.string();
 }

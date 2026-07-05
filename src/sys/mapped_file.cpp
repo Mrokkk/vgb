@@ -23,8 +23,11 @@ MappedFile::~MappedFile()
 {
     if (platform.unmapFileImpl)
     {
-        auto res = platform.unmapFileImpl(mPtr, mSize);
-        (void)res;
+        if (mPtr)
+        {
+            auto res = platform.unmapFileImpl(mPtr, mSize);
+            (void)res;
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 #include "platform.hpp"
 
+#include "error.hpp"
 #include "sys/mapped_file.hpp"
 #include "sys/supervision.hpp"
 
@@ -12,14 +13,14 @@ MaybeMappedFile mapFile(const char* pathname, bool readOnly)
 {
     if (not platform.mapFileImpl) [[unlikely]]
     {
-        return std::unexpected("Platform does not support file mapping");
+        return error("Platform does not support file mapping");
     }
 
     auto result = platform.mapFileImpl(pathname, readOnly);
 
     if (not result) [[unlikely]]
     {
-        return std::unexpected(std::move(result.error()));
+        return error(std::move(result.error()));
     }
 
     return MappedFile{
@@ -36,11 +37,11 @@ void frame()
     platform.renderer->render();
 }
 
-void abort()
+void abortMainThread()
 {
-    if (platform.abort) [[likely]]
+    if (platform.abortMainThread) [[likely]]
     {
-        platform.abort();
+        platform.abortMainThread();
     }
     else
     {
@@ -60,7 +61,7 @@ MaybeError writeToFile(const char* pathname, const void* data, size_t size)
 {
     if (not platform.writeToFile) [[unlikely]]
     {
-        return std::unexpected("writeToFile operation not supported");
+        return error("writeToFile not implemented");
     }
     return platform.writeToFile(pathname, data, size);
 }
@@ -74,22 +75,25 @@ std::string getDefaultConfigDir()
     return platform.getDefaultConfigDir();
 }
 
-bool doesDirExist(const char* pathname)
+MaybeFileInfo readFileInfo(const char* pathname)
 {
-    if (not platform.doesDirExist) [[unlikely]]
+    if (not platform.readFileInfo) [[unlikely]]
     {
-        return false;
+        return error("readFileInfo not implemented");
     }
-    return platform.doesDirExist(pathname);
+    return platform.readFileInfo(pathname);
 }
 
-bool doesFileExist(const char* pathname)
+bool isFile(const char* pathname)
 {
-    if (not platform.doesFileExist) [[unlikely]]
-    {
-        return false;
-    }
-    return platform.doesFileExist(pathname);
+    auto info = readFileInfo(pathname);
+    return info and info->type == FileType::File;
+}
+
+bool isDirectory(const char* pathname)
+{
+    auto info = readFileInfo(pathname);
+    return info and info->type == FileType::Directory;
 }
 
 Fonts getFonts()
@@ -99,6 +103,15 @@ Fonts getFonts()
         return {};
     }
     return platform.getFonts();
+}
+
+MaybeError createDirectory(const char* pathname)
+{
+    if (not platform.createDirectory) [[unlikely]]
+    {
+        return error("createDirectory not implemented");
+    }
+    return platform.createDirectory(pathname);
 }
 
 }  // namespace sys

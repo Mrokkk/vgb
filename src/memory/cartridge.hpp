@@ -2,9 +2,10 @@
 
 #include <cstdint>
 
+#include "fwd.hpp"
+#include "sys/mapped_file.hpp"
 #include "utils/immobile.hpp"
 #include "utils/inline.hpp"
-#include "utils/units.hpp"
 
 namespace memory
 {
@@ -75,7 +76,7 @@ struct Cartridge final : utils::Immobile
     Cartridge();
     ~Cartridge();
 
-    void initialize(void* rom, void* ram);
+    void initialize(const Config& config);
     void reset();
 
     uint8_t load(uint16_t addr) const;
@@ -130,6 +131,8 @@ struct Cartridge final : utils::Immobile
     enum MBC MBC() const;
 
 private:
+    void initialize(void* rom, void* ram);
+
     bool     mRamEnabled;
     bool     mRamDirty;
     bool     mAllocatedRam;
@@ -149,6 +152,8 @@ private:
     uint32_t mRamBank;
     uint32_t mBanks;
     uint32_t mBank;
+    sys::MappedFile mMappedRom;
+    sys::MappedFile mMappedRam;
 };
 
 }  // namespace memory

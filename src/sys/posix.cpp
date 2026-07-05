@@ -7,13 +7,14 @@
 #include <cstring>
 #include <ctime>
 #include <cxxabi.h>
+#include <dirent.h>
 #include <dlfcn.h>
 #include <fcntl.h>
-#include <filesystem>
 #include <iterator>
 #include <malloc.h>
 #include <map>
 #include <stdio.h>
+#include <string.h>
 #include <string>
 #include <ucontext.h>
 #include <unistd.h>
@@ -30,7 +31,9 @@
 #include <sys/stat.h>
 
 #include "config.hpp"
+#include "error.hpp"
 #include "game_boy.hpp"
+#include "sys/path.hpp"
 #include "sys/platform.hpp"
 #include "sys/supervision.hpp"
 #include "utils/string.hpp"
@@ -315,7 +318,7 @@ static void stacktraceLogInternal()
 }
 #endif
 
-static void abort()
+static void abortMainThread()
 {
     auto pid = getpid();
     kill(pid, SIGABRT);
@@ -331,16 +334,35 @@ static void interruptionHandle(int)
     gb.cpu.stop();
 }
 
-static bool doesFileExist(const char* pathname)
+static MaybeFileInfo readFileInfo(const char* pathname)
 {
-    struct stat buf;
-    return stat(pathname, &buf) == 0 and S_ISREG(buf.st_mode);
-}
+    struct stat s;
 
-static bool doesDirExist(const char* pathname)
-{
-    struct stat buf;
-    return stat(pathname, &buf) == 0 and S_ISDIR(buf.st_mode);
+    if (stat(pathname, &s)) [[unlikely]]
+    {
+        return error(strerror(errno));
+    }
+
+    FileType type;
+
+    if (S_ISREG(s.st_mode))
+    {
+        type = FileType::File;
+    }
+    else if (S_ISDIR(s.st_mode))
+    {
+        type = FileType::Directory;
+    }
+    else
+    {
+        type = FileType::Other;
+    }
+
+    return FileInfo{
+        .type = type,
+        .size = static_cast<size_t>(s.st_size),
+        .modificationTime = s.st_mtim.tv_sec,
+    };
 }
 
 static MaybeMapped mapFileImpl(const char* pathname, bool readOnly)
@@ -445,7 +467,7 @@ static std::vector<Font> getFonts()
             FcPatternGetString(font, FC_FAMILY, 0, &family) == FcResultMatch and
             FcPatternGetString(font, FC_STYLE, 0, &style) == FcResultMatch)
         {
-            std::filesystem::path fontPath(reinterpret_cast<char*>(file));
+            Path fontPath(reinterpret_cast<char*>(file));
             std::string fontStyle(reinterpret_cast<char*>(style));
             std::string fontFamily(reinterpret_cast<char*>(family));
 
@@ -455,13 +477,13 @@ static std::vector<Font> getFonts()
             {
                 auto& f = familyToFonts[fontFamily];
                 f.family = std::move(fontFamily);
-                f.styles.emplace_back(std::move(fontPath.native()), std::move(fontStyle));
+                f.styles.emplace_back(fontPath.release(), std::move(fontStyle));
             }
             else if (extension == ".otf")
             {
                 auto& f = familyToFonts[fontFamily];
                 f.family = std::move(fontFamily);
-                f.styles.emplace_back(std::move(fontPath.native()), std::move(fontStyle));
+                f.styles.emplace_back(fontPath.release(), std::move(fontStyle));
             }
         }
     }
@@ -494,8 +516,11 @@ static double getCpuUsage()
     struct timespec currentTime;
     struct timespec currentCpuTime;
 
-    clock_gettime(CLOCK_MONOTONIC, &currentTime);
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &currentCpuTime);
+    if (clock_gettime(CLOCK_MONOTONIC, &currentTime) or
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &currentCpuTime)) [[unlikely]]
+    {
+        return 0.f;
+    }
 
     float cpuUsage = 0.f;
 
@@ -520,6 +545,128 @@ static size_t getAllocUsage()
 {
     const auto m = mallinfo2();
     return m.arena + m.hblkhd;
+}
+
+namespace
+{
+
+struct ReadDirContext final
+{
+    DIR*           dir;
+    struct dirent* dirEntry;
+};
+
+}  // namespace
+
+static auto readNextDirEntry(DIR* dir)
+{
+    struct dirent* dirEntry = nullptr;
+    while (1)
+    {
+        dirEntry = readdir(dir);
+        if (not dirEntry)
+        {
+            break;
+        }
+
+        if (strcmp(dirEntry->d_name, ".") and strcmp(dirEntry->d_name, ".."))
+        {
+            break;
+        }
+    }
+    return dirEntry;
+}
+
+static MaybeDirEntry createDirEntry(const char* dirname, struct dirent* d)
+{
+    char buffer[1024];
+
+    snprintf(buffer, sizeof(buffer), "%s/%s", dirname, d->d_name);
+
+    struct stat s;
+
+    if (stat(buffer, &s)) [[unlikely]]
+    {
+        return error(strerror(errno));
+    }
+
+    FileType type;
+
+    switch (d->d_type)
+    {
+        case DT_REG:
+            type = FileType::File;
+            break;
+        case DT_DIR:
+            type = FileType::Directory;
+            break;
+        default:
+            type = FileType::Other;
+            break;
+    }
+
+    return DirEntry{
+        .name = d->d_name,
+        .info = {
+            .type = type,
+            .size = static_cast<size_t>(s.st_size),
+            .modificationTime = s.st_mtim.tv_sec,
+        }
+    };
+}
+
+static MaybeDirEntry readDirectory(const char* pathname, void** ptr)
+{
+    if (not *ptr)
+    {
+        DIR* dir = opendir(pathname);
+
+        if (not dir)
+        {
+            *ptr = nullptr;
+            return error(strerror(errno));
+        }
+
+        auto dirEntry = readNextDirEntry(dir);
+
+        if (not dirEntry)
+        {
+            *ptr = nullptr;
+            return {};
+        }
+
+        auto ctx = new ReadDirContext;
+        ctx->dir = dir;
+        ctx->dirEntry = dirEntry;
+        *ptr = ctx;
+
+        return createDirEntry(pathname, dirEntry);
+    }
+
+    auto ctx = static_cast<ReadDirContext*>(*ptr);
+    ctx->dirEntry = readNextDirEntry(ctx->dir);
+
+    if (not ctx->dirEntry)
+    {
+        closedir(ctx->dir);
+        delete ctx;
+        *ptr = nullptr;
+        return {};
+    }
+
+    return createDirEntry(pathname, ctx->dirEntry);
+}
+
+static MaybeError createDirectory(const char* pathname)
+{
+    auto res = mkdir(pathname, 0755);
+
+    if (res == -1 and errno != EEXIST)
+    {
+        return error(strerror(errno));
+    }
+
+    return {};
 }
 
 void initialize(const Config&)
@@ -565,17 +712,18 @@ void initialize(const Config&)
 
     sigaction(SIGINT, &sa, nullptr);
 
-    platform.abort               = &abort;
+    platform.abortMainThread     = &abortMainThread;
     platform.stacktraceLog       = &stacktraceLog;
     platform.writeToFile         = &writeToFile;
     platform.getDefaultConfigDir = &getConfigDir;
-    platform.doesDirExist        = &doesDirExist;
-    platform.doesFileExist       = &doesFileExist;
+    platform.readFileInfo        = &readFileInfo;
     platform.getFonts            = &getFonts;
     platform.mapFileImpl         = &mapFileImpl;
     platform.unmapFileImpl       = &unmapFileImpl;
     platform.getCpuUsage         = &getCpuUsage;
     platform.getAllocUsage       = &getAllocUsage;
+    platform.readDirectory       = &readDirectory;
+    platform.createDirectory     = &createDirectory;
 }
 
 }  // namespace sys::posix

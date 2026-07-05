@@ -49,6 +49,13 @@ Strings operator|(const std::string& text, const SplitBy& splitBy)
         | std::ranges::to<Strings>();
 }
 
+Strings operator|(const std::string_view& text, const SplitBy& splitBy)
+{
+    return std::views::split(text, std::string_view(splitBy.delimiters))
+        | std::ranges::views::filter([](const auto& s){ return not s.empty(); })
+        | std::ranges::to<Strings>();
+}
+
 Strings operator|(const char* text, const SplitBy& splitBy)
 {
     return std::views::split(std::string_view(text), std::string_view(splitBy.delimiters))

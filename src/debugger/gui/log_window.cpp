@@ -73,9 +73,7 @@ void drawLogWindow(Context& ctx)
 
     if (auto window = ImGui::CreateWindow("Log", &ctx.gui.logWindow.get())) [[likely]]
     {
-        ImVec2 p0 = ImGui::GetCursorScreenPos();
         ImGui::InputTextMultiline("##Log", buffer.data(), buffer.size() + 1, ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
-        ImGui::GetWindowDrawList()->AddRectFilled(p0, ImVec2{p0.x + 100, p0.y + 100}, ImGui::GetColorU32(ImGuiCol_TextSelectedBg));
     }
 
     ImGui::PopStyleVar();

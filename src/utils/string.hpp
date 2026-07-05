@@ -39,6 +39,7 @@ template <typename T> static constexpr To<T> to;
 SplitBy splitBy(const char* delimiter);
 
 Strings     operator|(const std::string& text, const SplitBy& splitBy);
+Strings     operator|(const std::string_view& text, const SplitBy& splitBy);
 Strings     operator|(const char* text, const SplitBy& splitBy);
 std::string operator|(const std::string& path, const ReadTextWithoutLimit&);
 std::string operator|(const std::string& path, const ReadTextWithLimit& readText);

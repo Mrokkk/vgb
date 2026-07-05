@@ -26,7 +26,7 @@ namespace sys::raylib
 
 struct RaylibRenderer final : Renderer
 {
-    RaylibRenderer();
+    RaylibRenderer(const Config& config);
     ~RaylibRenderer();
 
     void render() override;
@@ -36,6 +36,7 @@ struct RaylibRenderer final : Renderer
     ALWAYS_INLINE void drawRectangle(float x, float y, float width, float height);
 
 private:
+    bool          mDebuggerMode;
     Image         mScreenImage;
     Texture2D     mScreenTexture;
     Image         mMapImage;
@@ -73,7 +74,7 @@ static void raylibLogFormat(int msgType, const char* text, va_list args)
     core::logger.log(severity).buffer().assign(buf, len);
 }
 
-RaylibRenderer::RaylibRenderer()
+RaylibRenderer::RaylibRenderer(const Config& config)
 {
     SetConfigFlags(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_RESIZABLE);
     SetTraceLogCallback(raylibLogFormat);
@@ -84,11 +85,16 @@ RaylibRenderer::RaylibRenderer()
     mScreenImage = GenImageColor(GB_LCD_RESX, GB_LCD_RESY, DARKGRAY);
     mScreenTexture = LoadTextureFromImage(mScreenImage);
 
-    if (gb.config.mode == Mode::Debugger)
+    if (config.mode == Mode::Debugger)
     {
+        mDebuggerMode = true;
         mMapImage = GenImageColor(256, 256, DARKGRAY);
         mMapTexture = LoadTextureFromImage(mMapImage);
         rlImGuiSetup(true);
+    }
+    else
+    {
+        mDebuggerMode = false;
     }
 
     SaveSerializer::registerData("screenImage", mScreenImage.data, mScreenImage.height * mScreenImage.width * 4);
@@ -98,7 +104,7 @@ RaylibRenderer::~RaylibRenderer()
 {
     UnloadTexture(mScreenTexture);
     UnloadImage(mScreenImage);
-    if (gb.config.mode == Mode::Debugger)
+    if (mDebuggerMode)
     {
         UnloadTexture(mMapTexture);
         UnloadImage(mMapImage);
@@ -127,7 +133,7 @@ void RaylibRenderer::render()
     {
         ClearBackground(DARKGRAY);
 
-        if (gb.config.mode == Mode::Debugger)
+        if (mDebuggerMode)
         {
             IMGUI()
             {
@@ -226,9 +232,9 @@ unsigned int RaylibRenderer::renderMap(bool drawScxScyWindow)
     return mMapTexture.id;
 }
 
-void createRenderer()
+void createRenderer(const Config& config)
 {
-    platform.renderer = utils::makeUnique<RaylibRenderer>();
+    platform.renderer = utils::makeUnique<RaylibRenderer>(config);
 }
 
 }  // namespace sys::raylib

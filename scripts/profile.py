@@ -24,7 +24,7 @@ def read_compile_commands():
 
 def format_command(tmpfile, original_command):
     regex = re.compile(r'-o [A-Za-z0-9_/\.]+ ')
-    command = f'CCACHE_DISABLE=1 /usr/bin/time -v clang++ -ftime-trace {original_command.partition(' ')[2]}'
+    command = f'CCACHE_DISABLE=1 /usr/bin/time -v clang++ -ftime-trace {original_command.partition(' ')[2]} -Wno-error'
     command = re.sub(regex, f'-o {tmpfile} ', command)
     return command
 

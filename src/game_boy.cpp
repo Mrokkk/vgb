@@ -48,12 +48,12 @@ GameBoy::GameBoy()
 
 GameBoy::~GameBoy() = default;
 
-void GameBoy::load(void* rom, void* ram, const Config& config)
+void GameBoy::load(Config config)
 {
-    cartridge.initialize(rom, ram);
+    cartridge.initialize(config);
     SaveManager::init(config);
 
-    this->config = config;
+    this->config = std::move(config);
 
     createPpu(*this);
     createJoypad(*this);

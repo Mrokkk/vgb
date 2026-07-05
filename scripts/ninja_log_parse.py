@@ -3,7 +3,7 @@
 import re
 import sys
 
-deps_regex = r'^.*_deps/([a-zA-Z0-9]+)-build/(.*)'
+deps_regex = r'^.*_deps/([a-zA-Z0-9_\-]+)-src/(.*)'
 
 def main():
     start_timestamp = int(sys.argv[2]) * 1000000000 if len(sys.argv) > 2 else 0
@@ -39,12 +39,14 @@ def main():
                 else:
                     component = 'unknown'
             else:
-                component = 'log-viewer'
+                component = 'vgb'
                 unit = unit.replace('.o', '')
                 if 'test.dir' in unit:
                     unit = unit.replace('test/CMakeFiles/test.dir/', 'test/')
-                else:
-                    unit = unit.replace('CMakeFiles/log-viewer.dir/', '')
+                elif 'emulator.dir' in unit:
+                    unit = unit.replace('CMakeFiles/emulator.dir/', '')
+                elif 'vgb.dir' in unit:
+                    unit = unit.replace('CMakeFiles/vgb.dir/', '')
 
             component_column_width = max(component_column_width, len(component))
 

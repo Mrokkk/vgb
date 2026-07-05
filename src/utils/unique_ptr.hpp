@@ -24,7 +24,10 @@ struct UniquePtr final
     }
 
     constexpr UniquePtr(const UniquePtr&)
-        = delete("copy of UniquePtr is not allowed");
+#if __cpp_deleted_function >= 202403L
+        = delete("copy of UniquePtr is not allowed")
+#endif
+        ;
 
     constexpr UniquePtr(UniquePtr&& other)
         : mPtr(other.mPtr)
@@ -40,7 +43,10 @@ struct UniquePtr final
     }
 
     constexpr UniquePtr& operator=(const UniquePtr&)
-        = delete("copy of UniquePtr is not allowed");
+#if __cpp_deleted_function >= 202403L
+        = delete("copy of UniquePtr is not allowed")
+#endif
+        ;
 
     constexpr UniquePtr& operator=(UniquePtr&& other)
     {
