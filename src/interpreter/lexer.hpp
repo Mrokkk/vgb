@@ -20,6 +20,7 @@ struct Token
         Slash,
         Pipe,
         Dot,
+        Comma,
         Add,
         Sub,
         Dollar,
@@ -27,8 +28,11 @@ struct Token
         RightParenthesis,
         LeftBracket,
         RightBracket,
+        LeftSquareBracket,
+        RightSquareBracket,
         Percent,
         Identifier,
+        Colon,
         Semicolon,
         Newline,
         Whitespace,
@@ -40,7 +44,11 @@ struct Token
 };
 
 using Tokens = std::vector<Token>;
+using MaybeTokens = std::expected<Tokens, std::string>;
 
-std::expected<Tokens, std::string> parse(const std::string_view& code);
+MaybeTokens parse(
+    const std::string_view& code,
+    char commentChar = '#',
+    bool allIntegersAsHex = false);
 
 }  // namespace interpreter

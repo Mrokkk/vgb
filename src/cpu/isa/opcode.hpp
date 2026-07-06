@@ -76,7 +76,6 @@ struct Opcode
         JR,
         LD,
         LDH,
-        NA,
         NOP,
         OR,
         POP,

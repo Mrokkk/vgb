@@ -1,11 +1,15 @@
 add_executable(test
 
+    assembler_tests.cpp
     instruction_tests.cpp
     main.cpp
     sys/path_tests.cpp
     tools/assert.cpp
+    tools/game_boy_fixture.cpp
     tools/platform_fake.cpp
     tools/platform_fake_tests.cpp
+    tools/printers.cpp
+    tools/watchdog.cpp
 
 )
 

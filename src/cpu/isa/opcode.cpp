@@ -26,7 +26,6 @@ const char* opcodeName(Opcode::Type t)
         case  Opcode::JR:       return  "jr";
         case  Opcode::LD:       return  "ld";
         case  Opcode::LDH:      return  "ldh";
-        case  Opcode::NA:       return  "na";
         case  Opcode::NOP:      return  "nop";
         case  Opcode::OR:       return  "or";
         case  Opcode::POP:      return  "pop";

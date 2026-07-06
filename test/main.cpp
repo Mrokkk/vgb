@@ -1,9 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest.h>
 
-#include "config.hpp"
-#include "sys/system.hpp"
-#include "game_boy.hpp"
+#include "src/config.hpp"
+#include "src/game_boy.hpp"
+#include "src/sys/system.hpp"
+#include "test/tools/watchdog.hpp"
 
 GameBoy gb;
 
@@ -15,6 +16,7 @@ int main(int argc, char** argv)
         .mode = Mode::Headless,
     };
 
+    test::tools::createWatchdog();
     sys::initialize(gb.config);
     doctest::Context context;
 

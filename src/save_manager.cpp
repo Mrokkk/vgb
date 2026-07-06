@@ -16,6 +16,8 @@
 #include "utils/source_location.hpp"
 #include "utils/units.hpp"
 
+using namespace utils::literals;
+
 static sys::Path saveDir;
 static std::vector<Save> saves;
 static constexpr auto quickSaveName = "quik.sav";
@@ -79,7 +81,7 @@ void SaveManager::quickSave()
         return;
     }
 
-    Byte buffer[256 * KiB];
+    Byte buffer[256_KiB];
     size_t compressedSize = sizeof(buffer);
 
     if (auto error = compress(buffer, &compressedSize, (const Byte*)serialized->data(), serialized->size())) [[unlikely]]

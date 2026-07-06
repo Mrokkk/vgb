@@ -9,6 +9,8 @@
 #include "sys/platform.hpp"
 #include "utils/units.hpp"
 
+using namespace utils::literals;
+
 namespace memory
 {
 
@@ -51,10 +53,10 @@ ALWAYS_INLINE static uint32_t ramSize(const CartridgeHeader* header)
 {
     switch (header->ramSize)
     {
-        case 2: return 8 * KiB;
-        case 3: return 32 * KiB;
-        case 4: return 128 * KiB;
-        case 5: return 64 * KiB;
+        case 2: return 8_KiB;
+        case 3: return 32_KiB;
+        case 4: return 128_KiB;
+        case 5: return 64_KiB;
     }
     return 0;
 }

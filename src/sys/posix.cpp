@@ -669,7 +669,7 @@ static MaybeError createDirectory(const char* pathname)
     return {};
 }
 
-void initialize(const Config&)
+void initialize(const Config& config)
 {
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
@@ -707,10 +707,13 @@ void initialize(const Config&)
     }
 #endif
 
-    sa.sa_flags = 0;
-    sa.sa_handler = &interruptionHandle;
+    if (config.mode != Mode::Headless)
+    {
+        sa.sa_flags = 0;
+        sa.sa_handler = &interruptionHandle;
 
-    sigaction(SIGINT, &sa, nullptr);
+        sigaction(SIGINT, &sa, nullptr);
+    }
 
     platform.abortMainThread     = &abortMainThread;
     platform.stacktraceLog       = &stacktraceLog;

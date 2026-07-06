@@ -2,13 +2,16 @@
 
 #include <doctest.h>
 
-#include "src/cpu/exception.hpp"
 #include "src/game_boy.hpp"
 #include "src/utils/units.hpp"
-#include "test/tools/base_fixture.hpp"
 #include "test/tools/compiler.hpp"
+#include "test/tools/game_boy_fixture.hpp"
+#include "test/tools/printers.hpp"
 
 namespace test
+{
+
+namespace
 {
 
 struct TestData final
@@ -19,7 +22,7 @@ struct TestData final
 
 CLANG_DIAGNOSTIC_PUSH()
 CLANG_DIAGNOSTIC_IGNORED("-Wc23-extensions")
-static const TestData data[] = {
+const TestData data[] = {
     TestData{
         .name = "01-special.gb",
         .rom = {
@@ -89,29 +92,8 @@ static const TestData data[] = {
 };
 CLANG_DIAGNOSTIC_POP()
 
-struct Fixture : tools::BaseFixture
+struct Fixture : tools::GameBoyFixture
 {
-    void loadRom(const void* data, size_t size)
-    {
-        static bool initialized = false;
-
-        fakePlatform.addFile("/test.rom", const_cast<void*>(data), size);
-        fakePlatform.setWorkingDirectory("/");
-        gb.config.cartridgePath = "test.rom";
-
-        if (not initialized)
-        {
-            gb.load(gb.config);
-            initialized = true;
-        }
-        else
-        {
-            gb.stop();
-            gb.reset();
-            gb.cartridge.initialize(gb.config);
-        }
-    }
-
     std::string readTestOutput() const
     {
         char data[256];
@@ -134,15 +116,15 @@ struct Fixture : tools::BaseFixture
     }
 };
 
-TEST_CASE_FIXTURE(Fixture, "Instructions")
+}  // namespace
+
+TEST_CASE_FIXTURE(Fixture, "Test ROMs")
 {
     for (size_t i = 0; i < ARRAY_SIZE(data); ++i)
     {
         SUBCASE(data[i].name)
         {
-            loadRom(data[i].rom, sizeof(data[i]));
-            gb.run();
-            CHECK_EQ(gb.cpu.exc.type, cpu::Exception::InfiniteLoop);
+            runRom(data[i].rom, sizeof(data[i]));
             auto testOutput = readTestOutput();
             if (not testOutput.contains("Passed")) [[unlikely]]
             {

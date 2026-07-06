@@ -13,7 +13,7 @@ std::unexpected<std::string> error(std::string msg);
 template <typename ...Args>
 auto error(fmt::format_string<Args...> fmt, Args&&... args)
 {
-    return std::unexpected(fmt::format_to_string(fmt, std::forward<Args>(args)...));
+    return std::unexpected(fmt::format_to_string(std::forward<fmt::format_string<Args...>>(fmt), std::forward<Args>(args)...));
 }
 
 #ifndef NDEBUG

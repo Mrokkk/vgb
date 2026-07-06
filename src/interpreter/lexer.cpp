@@ -16,6 +16,8 @@ namespace
 
 struct LexerState final
 {
+    char        commentChar;
+    bool        allIntegersAsHex;
     Tokens      tokens;
     const char* current;
     std::string error;
@@ -155,6 +157,17 @@ static bool intLiteral(LexerState& state)
             advance(state);
         }
     }
+    else if (state.allIntegersAsHex)
+    {
+        while (const auto c = peek(state))
+        {
+            if (not isxdigit(c))
+            {
+                break;
+            }
+            advance(state);
+        }
+    }
     else
     {
         while (const auto c = peek(state))
@@ -176,7 +189,7 @@ static bool comment(LexerState& state)
 {
     const auto start = current(state);
 
-    if (peek(state) != '#')
+    if (peek(state) != state.commentChar)
     {
         return false;
     }
@@ -279,18 +292,22 @@ static const TokenHandlers handlers = {
     space,
     comment,
     singleChar('\n', Token::Type::Newline),
+    singleChar(':', Token::Type::Colon),
     singleChar(';', Token::Type::Semicolon),
     singleChar('%', Token::Type::Percent),
     singleChar('!', Token::Type::Exclamation),
     singleChar('/', Token::Type::Slash),
     singleChar('|', Token::Type::Pipe),
     singleChar('.', Token::Type::Dot),
+    singleChar(',', Token::Type::Comma),
     singleChar('+', Token::Type::Add),
     singleChar('-', Token::Type::Sub),
     singleChar('(', Token::Type::LeftParenthesis),
     singleChar(')', Token::Type::RightParenthesis),
     singleChar('{', Token::Type::LeftBracket),
     singleChar('}', Token::Type::RightBracket),
+    singleChar('[', Token::Type::LeftSquareBracket),
+    singleChar(']', Token::Type::RightSquareBracket),
     singleChar('$', Token::Type::Dollar),
     intLiteral,
     stringLiteral,
@@ -298,9 +315,17 @@ static const TokenHandlers handlers = {
     identifier,
 };
 
-std::expected<Tokens, std::string> parse(const std::string_view& code)
+MaybeTokens parse(
+    const std::string_view& code,
+    char commentChar,
+    bool allIntegersAsHex)
 {
-    LexerState state{.current = code.data()};
+    LexerState state{
+        .commentChar = commentChar,
+        .allIntegersAsHex = allIntegersAsHex,
+        .current = code.data(),
+        .error{}
+    };
 
     while (peek(state))
     {

@@ -53,6 +53,7 @@ add_library(emulator OBJECT
     src/core/ini_serializer.cpp
     src/core/logger.cpp
     src/core/thread.cpp
+    src/cpu/isa/assembler.cpp
     src/cpu/isa/decoder.cpp
     src/cpu/isa/instruction_set.cpp
     src/cpu/isa/opcode.cpp

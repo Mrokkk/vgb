@@ -21,6 +21,11 @@ struct InstructionSet
         return mInstructions[opcode + 256 * static_cast<int>(prefixed)];
     }
 
+    ALWAYS_INLINE const Opcode* getOpcodes() const
+    {
+        return mOpcodes;
+    }
+
 private:
     Opcode      mOpcodes[512];
     Instruction mInstructions[512];
