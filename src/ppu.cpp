@@ -299,7 +299,7 @@ static uint8_t getColorFromPalette(uint8_t reg, int index)
     return (reg >> (index * 2)) & 3;
 }
 
-static uint8_t getColorIndexFromTile(uint8_t* tile, uint8_t pixel)
+static uint8_t getColorIndexFromTile(const uint8_t* tile, uint8_t pixel)
 {
     return (((tile[0] >> (7 - (pixel % 8))) & 1))
         | (((tile[1] >> (7 - (pixel % 8))) & 1) << 1);
@@ -307,12 +307,11 @@ static uint8_t getColorIndexFromTile(uint8_t* tile, uint8_t pixel)
 
 void Ppu::drawLine()
 {
-    auto& io = getIo();
+    const auto& io = getIo();
 
     const uint8_t y = io.ly;
     const uint8_t wx = io.wx - 7;
 
-    const bool useWindow = io.lcdc.windowEnable and io.wy <= io.ly;
     bool unsig;
 
     uint16_t tileData;
@@ -328,19 +327,15 @@ void Ppu::drawLine()
         unsig = false;
     }
 
-    const uint16_t bgMemory = useWindow
-        ? io.lcdc.windowTileMapArea
-            ? 0x1c00
-            : 0x1800
-        : io.lcdc.bgTileMapArea
-            ? 0x1c00
-            : 0x1800;
-
     Object objs[10];
     int objIndex = 0;
 
-    auto& oam = gb.cpu.mem.oam;
-    auto& vram = gb.cpu.mem.vram;
+    const auto& oam = gb.cpu.mem.oam;
+    const auto& vram = gb.cpu.mem.vram;
+
+    const uint8_t objHeight = io.lcdc.objSize
+        ? 16
+        : 8;
 
     if (io.lcdc.objEnable)
     {
@@ -348,22 +343,39 @@ void Ppu::drawLine()
         {
             const auto obj = reinterpret_cast<const Object*>(oam.data + i);
 
-            if ((y + 16 >= obj->yPos) and (y + 8 < obj->yPos))
+            if (y >= (int)obj->yPos - 16 and
+                y <  (int)obj->yPos - 16 + objHeight)
             {
                 objs[objIndex++] = *obj;
             }
         }
     }
 
-    const uint8_t yPos = useWindow
-        ? y - io.wy
-        : io.scy + y;
-
     for (uint8_t x = 0; x < GB_LCD_RESX; ++x)
     {
-        const uint8_t xPos = useWindow and x >= wx
-            ? x - wx
-            : io.scx + x;
+        const bool useWindow = io.lcdc.windowEnable and io.wy <= io.ly and x >= wx;
+
+        uint16_t bgMemory;
+        uint8_t xPos;
+
+        const uint8_t yPos = useWindow
+            ? y - io.wy
+            : io.scy + y;
+
+        if (useWindow)
+        {
+            bgMemory = io.lcdc.windowTileMapArea
+                ? 0x1c00
+                : 0x1800;
+            xPos = x - wx;
+        }
+        else
+        {
+            bgMemory = io.lcdc.bgTileMapArea
+                ? 0x1c00
+                : 0x1800;
+            xPos = io.scx + x;
+        }
 
         const uint16_t tileAddr = bgMemory + (yPos / 8) * 32 + xPos / 8;
 
@@ -372,23 +384,24 @@ void Ppu::drawLine()
             : 128 + (int8_t)vram.data[tileAddr];
 
         const auto tileLocation = tileData + tileId * GB_TILE_BYTES;
-        const auto line = (yPos % 8) * 2;
+        const auto line = yPos % 8;
 
-        const auto bgColor = getColorIndexFromTile(&vram.data[tileLocation + line], xPos % 8);
+        const auto bgColor = getColorIndexFromTile(&vram.data[tileLocation + line * 2], xPos % 8);
 
         bool gotObj = false;
+
         for (int i = 0; i < objIndex; ++i)
         {
             const auto obj = &objs[i];
             if ((x + 8 >= obj->xPos) and (x < obj->xPos))
-            { // FIXME: lack of support for 8x16 objects
+            {
                 const auto xPos = obj->xPos - 8;
                 const auto yPos = obj->yPos - 16;
                 const auto tileData = vram.data + (obj->attr.bank ? 0x1000 : 0x0);
                 const auto tile = tileData + obj->tileId * GB_TILE_BYTES;
 
                 const auto relX = obj->attr.xflip ? 7 - (x - xPos) : x - xPos;
-                const auto relY = obj->attr.yflip ? 7 - (y - yPos) : y - yPos;
+                const auto relY = obj->attr.yflip ? objHeight - 1 - (y - yPos) : y - yPos;
 
                 const auto color = getColorIndexFromTile(&tile[relY * 2], relX);
 
