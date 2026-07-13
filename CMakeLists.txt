@@ -36,6 +36,8 @@ include_directories(SYSTEM src/ext)
 
 file(GLOB INSTRUCTIONS "src/cpu/isa/instructions/*.cpp")
 
+add_subdirectory(src/assembler)
+
 # https://gitlab.kitware.com/cmake/cmake/-/work_items/18090
 set(LIBRARIES
     fmt
@@ -45,6 +47,7 @@ set(LIBRARIES
     zlib
     backtrace
     Fontconfig::Fontconfig
+    assembler
 )
 
 add_library(emulator OBJECT
@@ -53,7 +56,6 @@ add_library(emulator OBJECT
     src/core/ini_serializer.cpp
     src/core/logger.cpp
     src/core/thread.cpp
-    src/cpu/isa/assembler.cpp
     src/cpu/isa/decoder.cpp
     src/cpu/isa/instruction_set.cpp
     src/cpu/isa/opcode.cpp

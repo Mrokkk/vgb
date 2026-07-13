@@ -9,14 +9,25 @@ namespace sys
 
 Platform platform;
 
-MaybeMappedFile mapFile(const char* pathname, bool readOnly)
+#define READ_PATH(SRC, DEST) \
+    char DEST[1024]; \
+    if (SRC.size() + 1 >= sizeof(DEST)) [[unlikely]] \
+    { \
+        return error("Filename too long"); \
+    } \
+    memcpy(DEST, SRC.data(), SRC.size()); \
+    DEST[SRC.size()] = '\0'
+
+MaybeMappedFile mapFile(const std::string_view& path, bool readOnly)
 {
     if (not platform.mapFileImpl) [[unlikely]]
     {
         return error("Platform does not support file mapping");
     }
 
-    auto result = platform.mapFileImpl(pathname, readOnly);
+    READ_PATH(path, buffer);
+
+    auto result = platform.mapFileImpl(buffer, readOnly);
 
     if (not result) [[unlikely]]
     {
@@ -57,13 +68,14 @@ void stacktraceLog()
     }
 }
 
-MaybeError writeToFile(const char* pathname, const void* data, size_t size)
+MaybeError writeToFile(const std::string_view& path, const void* data, size_t size)
 {
     if (not platform.writeToFile) [[unlikely]]
     {
         return error("writeToFile not implemented");
     }
-    return platform.writeToFile(pathname, data, size);
+    READ_PATH(path, buffer);
+    return platform.writeToFile(buffer, data, size);
 }
 
 std::string getDefaultConfigDir()
@@ -75,24 +87,25 @@ std::string getDefaultConfigDir()
     return platform.getDefaultConfigDir();
 }
 
-MaybeFileInfo readFileInfo(const char* pathname)
+MaybeFileInfo readFileInfo(const std::string_view& path)
 {
     if (not platform.readFileInfo) [[unlikely]]
     {
         return error("readFileInfo not implemented");
     }
-    return platform.readFileInfo(pathname);
+    READ_PATH(path, buffer);
+    return platform.readFileInfo(buffer);
 }
 
-bool isFile(const char* pathname)
+bool isFile(const std::string_view& path)
 {
-    auto info = readFileInfo(pathname);
+    auto info = readFileInfo(path);
     return info and info->type == FileType::File;
 }
 
-bool isDirectory(const char* pathname)
+bool isDirectory(const std::string_view& path)
 {
-    auto info = readFileInfo(pathname);
+    auto info = readFileInfo(path);
     return info and info->type == FileType::Directory;
 }
 
@@ -105,13 +118,14 @@ Fonts getFonts()
     return platform.getFonts();
 }
 
-MaybeError createDirectory(const char* pathname)
+MaybeError createDirectory(const std::string_view& path)
 {
     if (not platform.createDirectory) [[unlikely]]
     {
         return error("createDirectory not implemented");
     }
-    return platform.createDirectory(pathname);
+    READ_PATH(path, buffer);
+    return platform.createDirectory(buffer);
 }
 
 }  // namespace sys

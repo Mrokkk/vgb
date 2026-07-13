@@ -12,7 +12,7 @@
 namespace test::tools
 {
 
-void GameBoyFixture::runRom(const void* data, size_t size)
+void GameBoyFixture::loadRom(const void* data, size_t size)
 {
     static bool initialized = false;
 
@@ -31,14 +31,38 @@ void GameBoyFixture::runRom(const void* data, size_t size)
         gb.reset();
         gb.cartridge.initialize(gb.config);
     }
+}
 
-    withWatchdog(1.0f, [this]{ run(); });
-
+void GameBoyFixture::runRom(const void* data, size_t size)
+{
+    loadRom(data, size);
+    run();
     CAPTURE(gb.cpu.exc);
     REQUIRE_EQ(gb.cpu.exc.type, cpu::Exception::InfiniteLoop);
 }
 
 void GameBoyFixture::run()
+{
+#ifdef __SANITIZE_ADDRESS__
+    withWatchdog(10.0f, [this]{ runImpl(); });
+#else
+    withWatchdog(1.0f, [this]{ runImpl(); });
+#endif
+}
+
+void GameBoyFixture::step()
+{
+    if (printAllInstructions)
+    {
+        auto disCtx = cpu::isa::DisassembleContext::create(gb.cpu, gb.cpu.pc);
+        cpu::isa::disassemble(disCtx);
+
+        fmt::println("{:04x}: {}", gb.cpu.pc.get(), disCtx.disassembled);
+    }
+    gb.cpu.step();
+}
+
+void GameBoyFixture::runImpl()
 {
     if (printAllInstructions)
     {

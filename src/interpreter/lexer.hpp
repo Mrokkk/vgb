@@ -23,6 +23,8 @@ struct Token
         Comma,
         Add,
         Sub,
+        Mult,
+        Div,
         Dollar,
         LeftParenthesis,
         RightParenthesis,

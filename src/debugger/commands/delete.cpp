@@ -1,5 +1,4 @@
-#include <fmt/base.h>
-#include <fmt/fmt_ext.h>
+#include <fmt/format.h>
 
 #include "debugger/context.hpp"
 #include "interpreter/command.hpp"
@@ -16,7 +15,7 @@ DEFINE_AND_REGISTER_COMMAND(delete)
 
         if (id < 0)
         {
-            return std::unexpected(fmt::format_to_string("Invalid breakpoint number: {}", id));
+            return std::unexpected(fmt::format("Invalid breakpoint number: {}", id));
         }
 
         for (auto it = ctx.breakpoints.begin(); it != ctx.breakpoints.end(); ++it)

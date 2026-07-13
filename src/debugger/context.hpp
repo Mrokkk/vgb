@@ -4,8 +4,6 @@
 #include <map>
 #include <string>
 
-#include <fmt/fmt_ext.h>
-
 #include "cpu/fwd.hpp"
 #include "debugger/console.hpp"
 #include "debugger/games/game.hpp"

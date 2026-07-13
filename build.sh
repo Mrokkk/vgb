@@ -167,8 +167,13 @@ build_target()
 run_command()
 {
     local critical=
+    local time_cmd=
 
     case "${1}" in
+        -t)
+            shift
+            time_cmd=on
+            ;;
         -e)
             shift
             critical=on
@@ -189,12 +194,19 @@ run_command()
 
     set +e
 
-    if [ -f /usr/bin/time ]
+    local wrapper=
+
+    if [ -n "${time_cmd}" ]
     then
-        /usr/bin/time -v "${command}" "${@}"
-    else
-        "${command}" "${@}"
+        if [ -f /usr/bin/time ]
+        then
+            wrapper="/usr/bin/time -v"
+        else
+            wrapper="time"
+        fi
     fi
+
+    ${wrapper} "${command}" "${@}"
 
     status=$?
 
@@ -254,7 +266,7 @@ case "${COMMAND}" in
     run)
         shift
         build_target "vgb" "${NINJA_FLAGS}"
-        run_command "${BUILD_DIR}/vgb" "${ARGS[@]}"
+        run_command -t "${BUILD_DIR}/vgb" "${ARGS[@]}"
         ;;
     test)
         shift
@@ -264,7 +276,7 @@ case "${COMMAND}" in
             ninja tests-cov-html
         else
             build_target "test" "${NINJA_FLAGS}"
-            run_command "${BUILD_DIR}/test/test" "${ARGS}"
+            run_command -t "${BUILD_DIR}/test/test" "${ARGS}"
         fi
         ;;
     *)

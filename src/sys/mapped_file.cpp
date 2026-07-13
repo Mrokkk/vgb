@@ -21,14 +21,7 @@ MappedFile::MappedFile(bool readonly, void* ptr, size_t size)
 
 MappedFile::~MappedFile()
 {
-    if (platform.unmapFileImpl)
-    {
-        if (mPtr)
-        {
-            auto res = platform.unmapFileImpl(mPtr, mSize);
-            (void)res;
-        }
-    }
+    reset();
 }
 
 MappedFile::MappedFile(MappedFile&& other)
@@ -48,6 +41,15 @@ MappedFile& MappedFile::operator=(MappedFile&& other)
     other.mPtr = nullptr;
     other.mSize = 0;
     return *this;
+}
+
+void MappedFile::reset()
+{
+    if (mPtr and platform.unmapFileImpl)
+    {
+        auto res = platform.unmapFileImpl(mPtr, mSize);
+        (void)res;
+    }
 }
 
 }  // namespace sys

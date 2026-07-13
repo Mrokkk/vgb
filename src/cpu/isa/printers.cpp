@@ -22,60 +22,15 @@ fmt::format_context::iterator fmt::formatter<cpu::isa::InstructionData>::format(
 
 fmt::format_context::iterator fmt::formatter<cpu::isa::Opcode::Type>::format(cpu::isa::Opcode::Type type, format_context& ctx) const
 {
-#define CONVERT(TYPE) \
-    case cpu::isa::Opcode::Type::TYPE: \
-        return format_to(ctx.out(), #TYPE)
+#define MNEMO(UPPER, LOWER) case cpu::isa::Opcode::Type::UPPER: return format_to(ctx.out(), #LOWER);
+#define MNEMO_ILL MNEMO
     switch (type)
     {
-        CONVERT(ILL);
-        CONVERT(ADC);
-        CONVERT(ADD);
-        CONVERT(AND);
-        CONVERT(BIT);
-        CONVERT(CALL);
-        CONVERT(CCF);
-        CONVERT(CP);
-        CONVERT(CPL);
-        CONVERT(DAA);
-        CONVERT(DEC);
-        CONVERT(DI);
-        CONVERT(EI);
-        CONVERT(HALT);
-        CONVERT(INC);
-        CONVERT(JP);
-        CONVERT(JR);
-        CONVERT(LD);
-        CONVERT(LDH);
-        CONVERT(NOP);
-        CONVERT(OR);
-        CONVERT(POP);
-        CONVERT(PREFIX);
-        CONVERT(PUSH);
-        CONVERT(RES);
-        CONVERT(RET);
-        CONVERT(RETI);
-        CONVERT(RL);
-        CONVERT(RLA);
-        CONVERT(RLC);
-        CONVERT(RLCA);
-        CONVERT(RR);
-        CONVERT(RRA);
-        CONVERT(RRC);
-        CONVERT(RRCA);
-        CONVERT(RST);
-        CONVERT(SBC);
-        CONVERT(SCF);
-        CONVERT(SET);
-        CONVERT(SLA);
-        CONVERT(SRA);
-        CONVERT(SRL);
-        CONVERT(STOP);
-        CONVERT(SUB);
-        CONVERT(SWAP);
-        CONVERT(XOR);
+#include "cpu/isa/mnemos.hpp"
     }
     return format_to(ctx.out(), "Unknown({})", int(type));
-#undef CONVERT
+#undef MNEMO
+#undef MNEMO_ILL
 }
 
 fmt::format_context::iterator fmt::formatter<cpu::isa::Operand::Type>::format(cpu::isa::Operand::Type type, format_context& ctx) const

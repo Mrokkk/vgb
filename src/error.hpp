@@ -6,14 +6,14 @@
 #include <string_view>
 #include <utility>
 
-#include <fmt/fmt_ext.h>
+#include <fmt/format.h>
 
 std::unexpected<std::string> error(std::string msg);
 
 template <typename ...Args>
 auto error(fmt::format_string<Args...> fmt, Args&&... args)
 {
-    return std::unexpected(fmt::format_to_string(std::forward<fmt::format_string<Args...>>(fmt), std::forward<Args>(args)...));
+    return std::unexpected(fmt::format(std::forward<fmt::format_string<Args...>>(fmt), std::forward<Args>(args)...));
 }
 
 #ifndef NDEBUG
@@ -37,7 +37,7 @@ namespace detail
 template <typename ...Args>
 [[noreturn]] void assertionFailed(const char* file, size_t line, const char* func, fmt::format_string<Args...> fmt, Args&&... args)
 {
-    assertionFailed(file, line, func, std::string_view(fmt::format_to_string(fmt, std::forward<Args>(args)...)));
+    assertionFailed(file, line, func, std::string_view(fmt::format(fmt, std::forward<Args>(args)...)));
 }
 
 }  // namespace detail

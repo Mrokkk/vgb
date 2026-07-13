@@ -4,17 +4,17 @@
 
 #include <doctest.h>
 
+#include "assembler/assembler.hpp"
 #include "src/cpu/exception.hpp"
-#include "src/cpu/isa/assembler.hpp"
 #include "src/cpu/register.hpp"
 
 namespace doctest
 {
 
 template <>
-struct StringMaker<cpu::isa::MaybeRom>
+struct StringMaker<assembler::MaybeRom>
 {
-    static String convert(const cpu::isa::MaybeRom& value);
+    static String convert(const assembler::MaybeRom& value);
 };
 
 template <>

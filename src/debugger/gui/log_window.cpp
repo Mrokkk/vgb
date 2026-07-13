@@ -1,5 +1,6 @@
 #include "log_window.hpp"
 
+#include <fmt/format.h>
 #include <imgui.h>
 #include <imgui_ext.h>
 
@@ -34,7 +35,7 @@ static void onLog(Context& ctx, const core::LogEntry& entry)
 
     if (entry.header)
     {
-        buffer += fmt::format_to_string("[{}] [{}] {}: {}\n",
+        buffer += fmt::format("[{}] [{}] {}: {}\n",
             timeBuf,
             entry.header,
             entry.location.func,
@@ -42,7 +43,7 @@ static void onLog(Context& ctx, const core::LogEntry& entry)
     }
     else
     {
-        buffer += fmt::format_to_string("[{}] {}: {}\n",
+        buffer += fmt::format("[{}] {}: {}\n",
             timeBuf,
             entry.location.func,
             entry.message);

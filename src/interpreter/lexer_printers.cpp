@@ -24,6 +24,8 @@ fmt::format_context::iterator fmt::formatter<Token::Type>::format(Token::Type ty
         TOKEN_TYPE_PRINT(Comma);
         TOKEN_TYPE_PRINT(Add);
         TOKEN_TYPE_PRINT(Sub);
+        TOKEN_TYPE_PRINT(Mult);
+        TOKEN_TYPE_PRINT(Div);
         TOKEN_TYPE_PRINT(Dollar);
         TOKEN_TYPE_PRINT(LeftParenthesis);
         TOKEN_TYPE_PRINT(RightParenthesis);

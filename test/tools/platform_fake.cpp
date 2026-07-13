@@ -390,13 +390,13 @@ PlatformFake::~PlatformFake()
     cwd = nullptr;
 }
 
-PlatformFake& PlatformFake::addFile(std::string_view path)
+PlatformFake& PlatformFake::addFile(const std::string_view& path)
 {
     addFile(path, nullptr, 0);
     return *this;
 }
 
-PlatformFake& PlatformFake::addFile(std::string_view path, void* data, size_t size)
+PlatformFake& PlatformFake::addFile(const std::string_view& path, void* data, size_t size)
 {
     auto result = lookup(path, true);
     ASSERT_THROW(result.dirNode, "Failed to lookup/create directories");
@@ -405,7 +405,12 @@ PlatformFake& PlatformFake::addFile(std::string_view path, void* data, size_t si
     return *this;
 }
 
-PlatformFake& PlatformFake::addDirectory(std::string_view path)
+PlatformFake& PlatformFake::addFile(const std::string_view& path, const std::string_view& sv)
+{
+    return addFile(path, (void*)sv.data(), sv.size());
+}
+
+PlatformFake& PlatformFake::addDirectory(const std::string_view& path)
 {
     auto result = lookup(path, true);
     ASSERT_THROW(result.dirNode, "Failed to lookup/create directories");
@@ -413,7 +418,7 @@ PlatformFake& PlatformFake::addDirectory(std::string_view path)
     return *this;
 }
 
-PlatformFake& PlatformFake::setWorkingDirectory(std::string_view path)
+PlatformFake& PlatformFake::setWorkingDirectory(const std::string_view& path)
 {
     auto result = lookup(path);
     ASSERT_THROW(result.node, "Path does not exist!");

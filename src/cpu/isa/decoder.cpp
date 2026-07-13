@@ -1,8 +1,9 @@
 #include "decoder.hpp"
 
-#include <fmt/base.h>
-#include <fmt/fmt_ext.h>
+#include <cstdlib>
 #include <string_view>
+
+#include <fmt/format.h>
 
 #include "cpu/isa/opcode.hpp"
 #include "cpu/isa/operand.hpp"
@@ -108,7 +109,14 @@ static auto decode(const Decode& d, fmt::format_context& ctx)
                 break;
 
             case Operand::SP_Plus_ImmS8:
-                // TODO
+                if (data.immS8() < 0)
+                {
+                    it = fmt::format_to(it, "sp - ${:x}", abs(data.immS8()));
+                }
+                else
+                {
+                    it = fmt::format_to(it, "sp + ${:x}", data.immS8());
+                }
                 break;
 
             case Operand::FlagZ ... Operand::FlagNC:
@@ -157,7 +165,7 @@ void disassemble(DisassembleContext& ctx)
         ctx.data.appendImmByte(cpu.mem.load8(ctx.pc++));
     }
 
-    ctx.disassembled = fmt::format_to_string("{}", cpu::isa::decode(opcode, ctx.data));
+    ctx.disassembled = fmt::format("{}", cpu::isa::decode(opcode, ctx.data));
 }
 
 }  // namespace cpu::isa

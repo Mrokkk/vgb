@@ -14,7 +14,7 @@ add_executable(test
 )
 
 target_include_directories(test PRIVATE ${PROJECT_SOURCE_DIR})
-target_link_libraries(test PUBLIC emulator doctest ${LIBRARIES})
+target_link_libraries(test PRIVATE emulator doctest ${LIBRARIES} assembler)
 target_compile_definitions(test PRIVATE
     -DDOCTEST_CONFIG_NO_MULTITHREADING
     -DDOCTEST_CONFIG_ASSERTS_RETURN_VALUES)

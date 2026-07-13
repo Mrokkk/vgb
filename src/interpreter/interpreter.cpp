@@ -2,7 +2,7 @@
 
 #include <map>
 
-#include <fmt/fmt_ext.h>
+#include <fmt/format.h>
 
 #include "interpreter/command.hpp"
 #include "interpreter/lexer.hpp"
@@ -86,7 +86,7 @@ static MaybeArguments getArgs(const Tokens& tokens)
 
             error:
             default:
-                return std::unexpected(fmt::format_to_string("Invalid syntax: unexpected token {}", token.value));
+                return std::unexpected(fmt::format("Invalid syntax: unexpected token {}", token.value));
         }
     }
 
@@ -99,14 +99,14 @@ static MaybeCommandData parseCommand(const std::string_view& line)
 
     if (not result) [[unlikely]]
     {
-        return std::unexpected(fmt::format_to_string("Invalid syntax: {}", result.error()));
+        return std::unexpected(fmt::format("Invalid syntax: {}", result.error()));
     }
 
     const auto& tokens = result.value();
 
     if (tokens[0].type != interpreter::Token::Type::Identifier) [[unlikely]]
     {
-        return std::unexpected(fmt::format_to_string("Invalid syntax: identifier expected, got \"{}\"", tokens[0].value));
+        return std::unexpected(fmt::format("Invalid syntax: identifier expected, got \"{}\"", tokens[0].value));
     }
 
     auto commandStr = tokens[0].value;

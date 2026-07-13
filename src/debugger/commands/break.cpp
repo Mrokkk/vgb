@@ -1,5 +1,4 @@
-#include <fmt/base.h>
-#include <fmt/fmt_ext.h>
+#include <fmt/format.h>
 
 #include "debugger/context.hpp"
 #include "interpreter/command.hpp"
@@ -31,7 +30,7 @@ DEFINE_AND_REGISTER_COMMAND(break)
             auto symbol = ctx.symbols[symbolName];
             if (not symbol)
             {
-                return std::unexpected(fmt::format_to_string("No such symbol: {}", symbolName));
+                return std::unexpected(fmt::format("No such symbol: {}", symbolName));
             }
             address = symbol->start;
         }
@@ -42,7 +41,7 @@ DEFINE_AND_REGISTER_COMMAND(break)
 
         if (address < 0 or address > 0xffff)
         {
-            return std::unexpected(fmt::format_to_string("Invalid address: {:x}", address));
+            return std::unexpected(fmt::format("Invalid address: {:x}", address));
         }
 
         auto newId = id++;

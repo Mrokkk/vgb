@@ -8,6 +8,7 @@ import sys
 from pygenerator import *
 from pygenerator.templates.instruction import *
 from pygenerator.templates.instruction_set import *
+from pygenerator.templates.mnemos import *
 
 import pygenerator.instructions
 
@@ -81,6 +82,8 @@ def get_operand(operand, mnemo):
 
 def get_mnemonic(val):
     if 'ILLEGAL' in val:
+        return 'ILL'
+    if 'PREFIX' in val:
         return 'ILL'
     return val
 
@@ -188,6 +191,10 @@ def main():
 
     for mnemo, instruction_cpp in instruction_cpps.items():
         write_file(os.path.join(instructions_dir, f'{mnemo.lower()}.cpp'), instruction_cpp)
+
+    mnemos_hpp = jinja2.Template(mnemos_hpp_template).render(mnemos=sorted(mnemos))
+
+    write_file(os.path.join(isa_dir, 'mnemos.hpp'), mnemos_hpp)
 
     instruction_set_cpp = jinja2.Template(instruction_set_cpp_template).render(
         opcodes=opcodes,

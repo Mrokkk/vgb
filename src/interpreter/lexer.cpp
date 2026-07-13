@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-#include <fmt/fmt_ext.h>
+#include <fmt/format.h>
 
 namespace interpreter
 {
@@ -302,6 +302,8 @@ static const TokenHandlers handlers = {
     singleChar(',', Token::Type::Comma),
     singleChar('+', Token::Type::Add),
     singleChar('-', Token::Type::Sub),
+    singleChar('*', Token::Type::Mult),
+    singleChar('/', Token::Type::Div),
     singleChar('(', Token::Type::LeftParenthesis),
     singleChar(')', Token::Type::RightParenthesis),
     singleChar('{', Token::Type::LeftBracket),
@@ -342,7 +344,7 @@ MaybeTokens parse(
 
         if (not found) [[unlikely]]
         {
-            state.error = fmt::format_to_string("unknown token at \"{}\"", state.current);
+            state.error = fmt::format("unknown token at \"{}\"", state.current);
             return std::unexpected(std::move(state.error));
         }
     }

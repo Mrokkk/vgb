@@ -4,9 +4,9 @@
 #include <map>
 #include <sstream>
 #include <string>
-
-#include <fmt/fmt_ext.h>
 #include <system_error>
+
+#include <fmt/format.h>
 
 namespace core
 {
@@ -83,7 +83,7 @@ DeserializationResult IniSerializer::deserializeLine(std::string_view line)
 
     if (eq == line.npos) [[unlikely]]
     {
-        return std::unexpected(fmt::format_to_string("Missing \"=\": {}", line));
+        return std::unexpected(fmt::format("Missing \"=\": {}", line));
     }
 
     auto name = line.substr(0, eq);
@@ -93,7 +93,7 @@ DeserializationResult IniSerializer::deserializeLine(std::string_view line)
 
     if (it == registry.end())
     {
-        return std::unexpected(fmt::format_to_string("Unexpected name: {}", name));
+        return std::unexpected(fmt::format("Unexpected name: {}", name));
     }
 
     line.remove_prefix(eq + 1);
@@ -106,11 +106,11 @@ DeserializationResult IniSerializer::deserializeLine(std::string_view line)
         auto result = std::from_chars(line.data(), line.data() + line.size(), value); \
         if (result.ec == std::errc::invalid_argument) [[unlikely]] \
         { \
-            return std::unexpected(fmt::format_to_string("Not an integer: {}", line)); \
+            return std::unexpected(fmt::format("Not an integer: {}", line)); \
         } \
         else if (result.ec == std::errc::result_out_of_range) \
         { \
-            return std::unexpected(fmt::format_to_string("Out of range: {}", line)); \
+            return std::unexpected(fmt::format("Out of range: {}", line)); \
         } \
         value; \
     })
@@ -122,7 +122,7 @@ DeserializationResult IniSerializer::deserializeLine(std::string_view line)
             auto value = CONVERT_NUMBER(uint8_t);
             if (value != 0 and value != 1)
             {
-                return std::unexpected(fmt::format_to_string("Invalid value for bool: {}", line));
+                return std::unexpected(fmt::format("Invalid value for bool: {}", line));
             }
             *static_cast<bool*>(entry.data) = value;
             break;

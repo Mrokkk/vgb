@@ -20,6 +20,8 @@ struct MappedFile final : utils::NonCopyable
     MappedFile(MappedFile&& other);
     MappedFile& operator=(MappedFile&& other);
 
+    void reset();
+
     ALWAYS_INLINE void* getData() const
     {
         return mPtr;
@@ -28,12 +30,17 @@ struct MappedFile final : utils::NonCopyable
     template <typename T>
     ALWAYS_INLINE T* getData() const
     {
-        return reinterpret_cast<T*>(mPtr);
+        return static_cast<T*>(mPtr);
     }
 
     ALWAYS_INLINE size_t getSize() const
     {
         return mSize;
+    }
+
+    ALWAYS_INLINE operator bool() const
+    {
+        return !!mPtr;
     }
 
 private:

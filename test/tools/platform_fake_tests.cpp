@@ -111,7 +111,7 @@ TEST_CASE_FIXTURE(tools::BaseFixture, "PlatformFake")
         {
             auto res = sys::mapFile("/somedir/nextdir/file");
             REQUIRE(res);
-            CHECK_EQ((const char*)res->getData(), std::string_view(content));
+            CHECK_EQ(res->getData<const char>(), std::string_view(content));
             CHECK_EQ(res->getSize(), sizeof(content));
         }
     }

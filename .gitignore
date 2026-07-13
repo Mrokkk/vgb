@@ -6,6 +6,10 @@ __pycache__
 /test/cpu_instrs/
 /test/instr_timing/
 /test/interrupt_time/
+/src/cpu/isa/mnemos.hpp
 /src/cpu/isa/instructions/*.cpp
 /src/cpu/isa/instruction_set.cpp
 /imgui.ini
+/src/assembler/parser.cpp
+/src/assembler/parser.hpp
+/src/assembler/parser.out

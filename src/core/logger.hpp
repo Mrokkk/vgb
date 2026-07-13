@@ -3,7 +3,7 @@
 #include <ctime>
 #include <string>
 
-#include <fmt/fmt_ext.h>
+#include <fmt/format.h>
 
 #include "severity.hpp"
 #include "utils/immobile.hpp"
@@ -44,7 +44,7 @@ struct Logger final
         template <typename ...Args>
         ALWAYS_INLINE void write(fmt::format_string<Args...> fmt, Args&&... args)
         {
-            mBuffer = fmt::format_to_string(std::move(fmt), std::forward<Args>(args)...);
+            mBuffer = fmt::format(std::move(fmt), std::forward<Args>(args)...);
         }
 
         ALWAYS_INLINE auto& buffer()

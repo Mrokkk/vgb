@@ -9,7 +9,7 @@
 #include "sys/renderer.hpp"
 
 #ifdef __unix__
-#include "posix.hpp"
+#include "posix.hpp" // IWYU pragma: keep
 #else
 #endif
 
@@ -54,16 +54,16 @@ struct Platform
 {
     void          (*abortMainThread)();
     void          (*stacktraceLog)();
-    MaybeError    (*writeToFile)(const char* pathname, const void* data, size_t size);
+    MaybeError    (*writeToFile)(const char* path, const void* data, size_t size);
     std::string   (*getDefaultConfigDir)();
-    MaybeFileInfo (*readFileInfo)(const char* pathname);
+    MaybeFileInfo (*readFileInfo)(const char* path);
     Fonts         (*getFonts)();
-    MaybeMapped   (*mapFileImpl)(const char* pathname, bool readOnly);
+    MaybeMapped   (*mapFileImpl)(const char* path, bool readOnly);
     MaybeError    (*unmapFileImpl)(void* ptr, size_t size);
     double        (*getCpuUsage)();
     size_t        (*getAllocUsage)();
-    MaybeDirEntry (*readDirectory)(const char* pathname, void** ptr);
-    MaybeError    (*createDirectory)(const char* pathname);
+    MaybeDirEntry (*readDirectory)(const char* path, void** ptr);
+    MaybeError    (*createDirectory)(const char* path);
 
     RendererPtr renderer;
     InputPtr    input;
@@ -73,14 +73,14 @@ extern Platform platform;
 
 void frame();
 void abortMainThread();
-MaybeMappedFile mapFile(const char* pathname, bool readOnly = true);
+MaybeMappedFile mapFile(const std::string_view& path, bool readOnly = true);
 void stacktraceLog();
-MaybeError writeToFile(const char* pathname, const void* data, size_t size);
+MaybeError writeToFile(const std::string_view& path, const void* data, size_t size);
 std::string getDefaultConfigDir();
-MaybeFileInfo readFileInfo(const char* pathname);
-bool isFile(const char* pathname);
-bool isDirectory(const char* pathname);
+MaybeFileInfo readFileInfo(const std::string_view& path);
+bool isFile(const std::string_view& path);
+bool isDirectory(const std::string_view& path);
 Fonts getFonts();
-MaybeError createDirectory(const char* pathname);
+MaybeError createDirectory(const std::string_view& path);
 
 }  // namespace sys

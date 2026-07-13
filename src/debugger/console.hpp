@@ -1,6 +1,6 @@
 #pragma once
 
-#include <fmt/fmt_ext.h>
+#include <fmt/format.h>
 
 #include "utils/inline.hpp"
 #include "utils/string.hpp"
@@ -13,7 +13,7 @@ struct Console
     template <typename ...Args>
     ALWAYS_INLINE void writeLine(fmt::format_string<Args...> fmt, Args&&... args)
     {
-        lines.push_back(fmt::format_to_string(std::move(fmt), std::forward<Args>(args)...));
+        lines.push_back(fmt::format(std::move(fmt), std::forward<Args>(args)...));
     }
 
     ALWAYS_INLINE void addLine(std::string line)
