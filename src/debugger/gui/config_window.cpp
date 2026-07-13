@@ -8,6 +8,10 @@ namespace debugger::gui
 
 static void setFont(Context& ctx, ImGuiIO& io, const sys::Font& font, const sys::FontStyle& fontStyle)
 {
+    if (io.FontDefault != ctx.gui.defaultFont)
+    {
+        io.Fonts->RemoveFont(io.FontDefault);
+    }
     io.FontDefault = io.Fonts->AddFontFromFileTTF(fontStyle.path.c_str());
     ctx.gui.fontFamily = font.family;
     ctx.gui.fontStyle = fontStyle.name;
