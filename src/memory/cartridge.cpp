@@ -346,11 +346,11 @@ void Cartridge::initialize(void* rom, void* ram)
         SaveSerializer::registerData("cartridge.mRamEnabled", mRamEnabled);
         SaveSerializer::registerData("cartridge.mBank", mBank);
         SaveSerializer::registerData("cartridge.mRamBank", mRamBank);
-        if (mRam)
-        {
-            SaveSerializer::registerData("cartridge.mRam", mRam, mRamSize);
-        }
         mDataRegistered = true;
+    }
+    if (mRam)
+    {
+        SaveSerializer::registerData("cartridge.mRam", mRam, mRamSize);
     }
 }
 

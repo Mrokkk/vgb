@@ -1,9 +1,7 @@
-#define DOCTEST_CONFIG_IMPLEMENT
-#include <doctest.h>
-
 #include "src/config.hpp"
 #include "src/game_boy.hpp"
 #include "src/sys/system.hpp"
+#include "test/tools/test_framework.hpp"
 #include "test/tools/watchdog.hpp"
 
 GameBoy gb;
@@ -18,11 +16,8 @@ int main(int argc, char** argv)
 
     test::tools::createWatchdog();
     sys::initialize(gb.config);
-    doctest::Context context;
 
-    context.applyCommandLine(argc, argv);
+    tools::getConfig().printIntegersAsHex = true;
 
-    const int res = context.run();
-
-    return res;
+    return TEST_CASES_RUN(argc, argv);
 }

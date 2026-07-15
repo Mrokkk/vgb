@@ -16,6 +16,22 @@ namespace cpu
 
 union FlagsRegister
 {
+    constexpr FlagsRegister& operator=(uint8_t val)
+    {
+        value = val;
+        return *this;
+    }
+
+    constexpr uint8_t get() const
+    {
+        return value;
+    }
+
+    constexpr operator uint8_t() const
+    {
+        return value;
+    }
+
     struct
     {
         uint8_t reserved:4;

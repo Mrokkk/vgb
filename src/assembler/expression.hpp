@@ -24,17 +24,17 @@ struct Expression
 
     constexpr int32_t value() const { return mValue; }
 
-#define DEFINE_UNARY_OPERATION(NAME, OP) \
+#define DEFINE_BINARY_OPERATION(NAME, OP) \
     constexpr void NAME(const Expression& lhs, const Expression& rhs) \
     { \
         mValue = lhs.mValue OP rhs.mValue; \
     }
 
-    DEFINE_UNARY_OPERATION(add, +)
-    DEFINE_UNARY_OPERATION(sub, -)
-    DEFINE_UNARY_OPERATION(mult, *)
-    DEFINE_UNARY_OPERATION(div, /)
-    DEFINE_UNARY_OPERATION(mod, %)
+    DEFINE_BINARY_OPERATION(add, +)
+    DEFINE_BINARY_OPERATION(sub, -)
+    DEFINE_BINARY_OPERATION(mult, *)
+    DEFINE_BINARY_OPERATION(div, /)
+    DEFINE_BINARY_OPERATION(mod, %)
 
     constexpr Expression& invert()
     {

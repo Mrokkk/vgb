@@ -1,14 +1,10 @@
 #include "printers.hpp"
 
-#include <cstdio>
 #include <string>
 
 #include <fmt/format.h>
 
 #include "src/cpu/printers.hpp"
-
-namespace doctest
-{
 
 #define BOLD  "\033[1m"
 #define RED   "\033[31;1m"
@@ -20,15 +16,14 @@ ALWAYS_INLINE constexpr T numberOfDigits(T x)
     return x > 0 ? (T)std::log10((double)x) + 1 : 1;
 }
 
-String StringMaker<assembler::MaybeRom>::convert(const assembler::MaybeRom& value)
+std::string TestStringConverter<assembler::MaybeRom>::convert(const assembler::MaybeRom& value)
 {
     if (value)
     {
-        return String("Valid ROM");
+        return "Valid ROM";
     }
 
-    std::string str("\n");
-    str.reserve(1024);
+    std::string out;
 
     for (const auto& e : value.error())
     {
@@ -37,7 +32,7 @@ String StringMaker<assembler::MaybeRom>::convert(const assembler::MaybeRom& valu
 
         if (loc)
         {
-            str += fmt::format(
+            out += fmt::format(
                 BOLD "{fileName}:{lineNo}:{pos}: " RESET RED "error:" RESET" {msg}\n"
                 "{lineNo} | {line}\n"
                 "{empty:<{digits}} | {marker:>{pos}}\n",
@@ -48,31 +43,24 @@ String StringMaker<assembler::MaybeRom>::convert(const assembler::MaybeRom& valu
         }
         else
         {
-            str += fmt::format(RED "error:" RESET" {}\n", msg);
+            out += fmt::format(RED "error:" RESET" {}\n", msg);
         }
     }
 
-    return String(str.data(), str.size());
+    return out;
 }
 
-String StringMaker<cpu::Register16>::convert(cpu::Register16 value)
+std::string TestStringConverter<cpu::Register16>::convert(cpu::Register16 value)
 {
-    char buffer[8];
-    snprintf(buffer, sizeof(buffer), "%#04x", value.get());
-    return buffer;
+    return fmt::format("{:#04x}", value.get());
 }
 
-String StringMaker<cpu::Register8>::convert(cpu::Register8 value)
+std::string TestStringConverter<cpu::Register8>::convert(cpu::Register8 value)
 {
-    char buffer[8];
-    snprintf(buffer, sizeof(buffer), "%#02x", value.get());
-    return buffer;
+    return fmt::format("{:#02x}", value.get());
 }
 
-String StringMaker<cpu::Exception>::convert(cpu::Exception value)
+std::string TestStringConverter<cpu::Exception>::convert(cpu::Exception value)
 {
-    auto str = fmt::format("{}", value);
-    return String(str.data(), str.size());
+    return fmt::format("{}", value);
 }
-
-}  // namespace doctest

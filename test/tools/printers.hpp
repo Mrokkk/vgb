@@ -2,37 +2,33 @@
 
 // IWYU pragma: always_keep
 
-#include <doctest.h>
+#include <string>
 
+#include "test/tools/test_framework.hpp"
 #include "assembler/assembler.hpp"
 #include "src/cpu/exception.hpp"
 #include "src/cpu/register.hpp"
 
-namespace doctest
-{
-
 template <>
-struct StringMaker<assembler::MaybeRom>
+struct TestStringConverter<assembler::MaybeRom>
 {
-    static String convert(const assembler::MaybeRom& value);
+    static std::string convert(const assembler::MaybeRom& value);
 };
 
 template <>
-struct StringMaker<cpu::Register16>
+struct TestStringConverter<cpu::Register16>
 {
-    static String convert(cpu::Register16 value);
+    static std::string convert(cpu::Register16 value);
 };
 
 template <>
-struct StringMaker<cpu::Register8>
+struct TestStringConverter<cpu::Register8>
 {
-    static String convert(cpu::Register8 value);
+    static std::string convert(cpu::Register8 value);
 };
 
 template <>
-struct StringMaker<cpu::Exception>
+struct TestStringConverter<cpu::Exception>
 {
-    static String convert(cpu::Exception value);
+    static std::string convert(cpu::Exception value);
 };
-
-}  // namespace doctest

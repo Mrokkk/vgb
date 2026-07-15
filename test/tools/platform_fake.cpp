@@ -1,5 +1,6 @@
 #include "platform_fake.hpp"
 
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <map>

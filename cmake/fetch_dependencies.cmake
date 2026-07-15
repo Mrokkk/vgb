@@ -2,50 +2,46 @@ include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
 
 FetchContent_Declare(fmt
+    SYSTEM
     GIT_REPOSITORY https://github.com/fmtlib/fmt
     GIT_TAG 407c905e45ad75fc29bf0f9bb7c5c2fd3475976f # tag: 12.1.0
 )
 FetchContent_MakeAvailable(fmt)
 
 FetchContent_Declare(raylib
+    SYSTEM
     GIT_REPOSITORY https://github.com/raysan5/raylib
     GIT_TAG dbc56a87da87d973a9c5baa4e7438a9d20121d28 # tag: 6.0
 )
 FetchContent_MakeAvailable(raylib)
 
 FetchContent_Declare(imgui
+    SYSTEM
     GIT_REPOSITORY https://github.com/ocornut/imgui
     GIT_TAG b61e56346a92cfcaf1f43a545ca37b0b32239654 # tag: v1.92.8-docking
 )
 FetchContent_MakeAvailable(imgui)
 
 FetchContent_Declare(imgui_club
+    SYSTEM
     GIT_REPOSITORY https://github.com/ocornut/imgui_club.git
     GIT_TAG a7eab6ccb9fec09f37705406a06bb3bfc09597fe # master
 )
 FetchContent_MakeAvailable(imgui_club)
 
 FetchContent_Declare(rlimgui
+    SYSTEM
     GIT_REPOSITORY https://github.com/raylib-extras/rlImGui
     GIT_TAG 3bc5731c4216bb8caa67fbea24aa85ce80d57ccb # tag: Raylib_6_0
 )
 FetchContent_MakeAvailable(rlimgui)
 
 FetchContent_Declare(argh
+    SYSTEM
     GIT_REPOSITORY https://github.com/adishavit/argh
     GIT_TAG c3f0d8c8a6dacb00df626b409248a34e3bcd15f5 # master
 )
 FetchContent_MakeAvailable(argh)
-
-if(BUILD_TESTS)
-    set(DOCTEST_VERSION v2.4.11)
-
-    FetchContent_Declare(doctest
-        URL  https://raw.githubusercontent.com/doctest/doctest/${DOCTEST_VERSION}/doctest/doctest.h
-        DOWNLOAD_NO_EXTRACT TRUE
-    )
-    FetchContent_MakeAvailable(doctest)
-endif()
 
 add_library(imgui OBJECT
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -80,8 +76,3 @@ if(BACKTRACE_FOUND)
 endif()
 
 find_package(Fontconfig)
-
-if(BUILD_TESTS)
-    add_library(doctest INTERFACE)
-    target_include_directories(doctest SYSTEM INTERFACE ${doctest_SOURCE_DIR})
-endif()

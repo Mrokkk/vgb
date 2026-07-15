@@ -1,15 +1,11 @@
+#define NO_EXCEPTIONS
 #include <string>
-
-#include <doctest.h>
 
 #include "src/game_boy.hpp"
 #include "src/utils/units.hpp"
 #include "test/tools/compiler.hpp"
 #include "test/tools/game_boy_fixture.hpp"
-#include "test/tools/printers.hpp"
-
-namespace test
-{
+#include "test/tools/test_framework.hpp"
 
 namespace
 {
@@ -92,6 +88,20 @@ const TestData data[] = {
 };
 CLANG_DIAGNOSTIC_POP()
 
+}  // namespace
+
+template <>
+struct TestStringConverter<TestData>
+{
+    static std::string convert(const TestData& t)
+    {
+        return t.name;
+    }
+};
+
+namespace test
+{
+
 struct Fixture : tools::GameBoyFixture
 {
     std::string readTestOutput() const
@@ -116,21 +126,13 @@ struct Fixture : tools::GameBoyFixture
     }
 };
 
-}  // namespace
-
-TEST_CASE_FIXTURE(Fixture, "Test ROMs")
+TEST_CASE_FIXTURE_P(Fixture, "Test ROMs", data)
 {
-    for (size_t i = 0; i < ARRAY_SIZE(data); ++i)
+    runRom(arg.rom, sizeof(arg));
+    auto testOutput = readTestOutput();
+    if (not testOutput.contains("Passed")) [[unlikely]]
     {
-        SUBCASE(data[i].name)
-        {
-            runRom(data[i].rom, sizeof(data[i]));
-            auto testOutput = readTestOutput();
-            if (not testOutput.contains("Passed")) [[unlikely]]
-            {
-                FAIL_CHECK("Failed test; output:\n", testOutput);
-            }
-        }
+        FAIL("Failed test; output:\n%s", testOutput.c_str());
     }
 }
 

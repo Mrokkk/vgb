@@ -7,7 +7,6 @@ namespace test::tools
 
 struct BaseFixture
 {
-protected:
     PlatformFake fakePlatform;
 };
 

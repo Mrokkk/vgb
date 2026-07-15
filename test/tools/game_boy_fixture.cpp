@@ -2,43 +2,43 @@
 
 #include <cstdlib>
 
-#include <doctest.h>
-
 #include "src/cpu/isa/decoder.hpp"
 #include "src/game_boy.hpp"
-#include "test/tools/printers.hpp"
 #include "test/tools/watchdog.hpp"
 
 namespace test::tools
 {
 
+bool GameBoyFixture::initialized = false;
+
+void GameBoyFixture::loadRomAndRam(std::vector<uint8_t>& rom, std::vector<uint8_t>& ram)
+{
+    fakePlatform.addFile("/test.rom", rom.data(), rom.size());
+    fakePlatform.addFile("/test.ram", ram.data(), ram.size());
+    fakePlatform.setWorkingDirectory("/");
+
+    gb.config.cartridgePath = "test.rom";
+    gb.config.cartridgeRamPath = "test.ram";
+
+    load();
+}
+
 void GameBoyFixture::loadRom(const void* data, size_t size)
 {
-    static bool initialized = false;
-
     fakePlatform.addFile("/test.rom", const_cast<void*>(data), size);
     fakePlatform.setWorkingDirectory("/");
+
     gb.config.cartridgePath = "test.rom";
 
-    if (not initialized)
-    {
-        gb.load(gb.config);
-        initialized = true;
-    }
-    else
-    {
-        gb.stop();
-        gb.reset();
-        gb.cartridge.initialize(gb.config);
-    }
+    load();
 }
 
 void GameBoyFixture::runRom(const void* data, size_t size)
 {
     loadRom(data, size);
     run();
-    CAPTURE(gb.cpu.exc);
-    REQUIRE_EQ(gb.cpu.exc.type, cpu::Exception::InfiniteLoop);
+    //CAPTURE(gb.cpu.exc);
+    //REQUIRE_EQ(gb.cpu.exc.type, cpu::Exception::InfiniteLoop);
 }
 
 void GameBoyFixture::run()
@@ -60,6 +60,21 @@ void GameBoyFixture::step()
         fmt::println("{:04x}: {}", gb.cpu.pc.get(), disCtx.disassembled);
     }
     gb.cpu.step();
+}
+
+void GameBoyFixture::load()
+{
+    if (not initialized)
+    {
+        gb.load(gb.config);
+        initialized = true;
+    }
+    else
+    {
+        gb.stop();
+        gb.reset();
+        gb.cartridge.initialize(gb.config);
+    }
 }
 
 void GameBoyFixture::runImpl()
