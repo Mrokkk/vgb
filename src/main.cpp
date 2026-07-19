@@ -33,20 +33,13 @@ int main(int argc, char* argv[])
         .cartridgeRamPath = createRamFilePath(cmdl[1]),
         .skipBootRom = cmdl[{"-f", "--skip-boot"}],
         .useSupervision = true,
-        .mode = cmdl[{"-m", "--minimal"}] ? Mode::Minimal : Mode::Debugger
+        .mode = Mode::Debugger,
     };
 
     sys::initialize(config);
     gb.load(config);
 
-    if (gb.config.mode == Mode::Debugger)
-    {
-        debugger::main(gb);
-    }
-    else
-    {
-        gb.run();
-    }
+    debugger::main(gb);
 
     gb.saveRam();
 

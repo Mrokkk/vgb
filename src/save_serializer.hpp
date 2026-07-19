@@ -18,7 +18,7 @@ using DeserializationResult = std::expected<std::nullptr_t, std::string>;
 struct SaveSerializer
 {
     template <typename T>
-    requires (std::is_pod_v<T> and not std::is_pointer_v<T> and not std::is_array_v<T>)
+    requires (std::is_standard_layout_v<T> and not std::is_pointer_v<T> and not std::is_array_v<T>)
     ALWAYS_INLINE static void registerData(const std::string_view& name, T& data)
     {
         registerData(name, reinterpret_cast<void*>(&data), sizeof(T));

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <string_view>
 
 #include "utils/consteval_string.hpp"
@@ -26,33 +27,40 @@ struct IniSerializer final
 
     ALWAYS_INLINE static void registerData(const std::string_view& name, bool& data)
     {
-        registerData(name, &data, Type::Bool);
+        registerData(name, &data, 1, Type::Bool);
     }
 
     ALWAYS_INLINE static void registerData(const std::string_view& name, int32_t& data)
     {
-        registerData(name, &data, Type::Int32);
+        registerData(name, &data, 1, Type::Int32);
     }
 
     ALWAYS_INLINE static void registerData(const std::string_view& name, uint32_t& data)
     {
-        registerData(name, &data, Type::Uint32);
+        registerData(name, &data, 1, Type::Uint32);
     }
 
     ALWAYS_INLINE static void registerData(const std::string_view& name, float& data)
     {
-        registerData(name, &data, Type::Float);
+        registerData(name, &data, 1, Type::Float);
     }
 
     ALWAYS_INLINE static void registerData(const std::string_view& name, std::string& data)
     {
-        registerData(name, &data, Type::String);
+        registerData(name, &data, 1, Type::String);
     }
 
-    static void registerData(const std::string_view& name, void* data, Type type);
+    ALWAYS_INLINE static void registerData(const std::string_view& name, uint32_t* data, size_t size)
+    {
+        registerData(name, data, size, Type::Uint32);
+    }
+
+    static void registerData(const std::string_view& name, void* data, size_t size, Type type);
 
     static std::string serialize();
     static DeserializationResult deserializeLine(std::string_view line);
+
+    static void onLoaded(const std::string_view& name, std::move_only_function<void()> callback);
 };
 
 template <typename T, utils::ConstevalString Name>
@@ -76,7 +84,36 @@ private:
     T mValue;
 };
 
+template <typename T, size_t Size, utils::ConstevalString Name>
+struct IniSavedArray final
+{
+    constexpr IniSavedArray()
+        : mValues()
+    {
+        IniSerializer::registerData(Name.data, mValues, Size);
+    }
+
+    ALWAYS_INLINE constexpr operator T*()             { return mValues; }
+    ALWAYS_INLINE constexpr operator const T*() const { return mValues; }
+
+    ALWAYS_INLINE constexpr T* get() { return mValues; }
+
+    ALWAYS_INLINE constexpr T& operator[](size_t i) { return mValues[i]; }
+
+    const T* begin() const { return mValues; }
+    const T* end() const { return mValues + Size; }
+
+    T* begin() { return mValues; }
+    T* end() { return mValues + Size; }
+
+private:
+    T mValues[Size];
+};
+
 #define INI_SAVED(TYPE, NAME) \
     ::core::IniSaved<TYPE, #NAME> NAME
+
+#define INI_SAVED_ARRAY(TYPE, COUNT, NAME) \
+    ::core::IniSavedArray<TYPE, COUNT, #NAME> NAME
 
 }  // namespace core

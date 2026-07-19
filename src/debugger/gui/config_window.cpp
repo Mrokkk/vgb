@@ -1,7 +1,11 @@
 #include "config_window.hpp"
 
+#include <cstring>
+
 #include <imgui.h>
 #include <imgui_ext.h>
+
+#include "sys/platform.hpp"
 
 namespace debugger::gui
 {
@@ -30,6 +34,8 @@ static void setDefaultFont(Context& ctx, ImGuiIO& io)
 
 static void drawViewConfig(Context& ctx, ImGuiIO& io)
 {
+    ImGui::SeparatorText("Font");
+
     if (auto _ = ImGui::CreateCombo("Font family", ctx.gui.fontFamily.get().c_str(), ImGuiComboFlags_HeightLargest))
     {
         if (ImGui::Selectable("(default)", ctx.gui.fontFamily.get() == "(default)"))
@@ -75,6 +81,72 @@ static void drawViewConfig(Context& ctx, ImGuiIO& io)
     }
 }
 
+static void updatePalette(const ImVec4* colors)
+{
+    uint32_t palette[4] = {
+        ImGui::GetColorU32(colors[0]) & 0xffffff,
+        ImGui::GetColorU32(colors[1]) & 0xffffff,
+        ImGui::GetColorU32(colors[2]) & 0xffffff,
+        ImGui::GetColorU32(colors[3]) & 0xffffff,
+    };
+    sys::platform.renderer->setPalette(palette);
+}
+
+static void readPalette(ImVec4* colors)
+{
+    auto palette = sys::platform.renderer->getPalette();
+
+    for (size_t i = 0; i < 4; ++i)
+    {
+        colors[i] = ImGui::ColorFromHex(palette[i]);
+    }
+}
+
+static void drawGameBoyConfig(Context&)
+{
+    static ImVec4 colors[4];
+    static ImVec4 originalColors[4];
+    static bool initialized = false;
+    static bool dirty = false;
+
+    if (not initialized)
+    {
+        readPalette(originalColors);
+        memcpy(colors, originalColors, sizeof(colors));
+        initialized = true;
+    }
+
+    ImGui::SeparatorText("Palette");
+
+    for (int i = 0; i < 4; ++i)
+    {
+        ImGui::PushID(i);
+        ImGui::Text("Color %i", i);
+        ImGui::SameLine();
+        if (ImGui::ColorEdit3("##color", (float*)&colors[i], ImGuiColorEditFlags_NoInputs))
+        {
+            dirty = memcmp(colors, originalColors, sizeof(colors)) != 0;
+        }
+        ImGui::PopID();
+    }
+
+    if (ImGui::Button("Apply", dirty))
+    {
+        updatePalette(colors);
+        memcpy(originalColors, colors, sizeof(colors));
+        dirty = false;
+    }
+
+    if (dirty)
+    {
+        if (ImGui::SameLineButton("Reset"))
+        {
+            memcpy(colors, originalColors, sizeof(colors));
+            dirty = false;
+        }
+    }
+}
+
 void drawConfigWindow(Context& ctx)
 {
     if (not ctx.gui.configWindow)
@@ -93,6 +165,8 @@ void drawConfigWindow(Context& ctx)
         | ImGuiWindowFlags_NoScrollbar
         | ImGuiWindowFlags_NoMove;
 
+    ImGui::SetNextWindowSize(ImVec2{500, 300});
+
     auto popup = ImGui::CreatePopupModal("Configuration", &ctx.gui.configWindow, configWindowFlags);
 
     if (not popup)
@@ -105,6 +179,10 @@ void drawConfigWindow(Context& ctx)
         if (auto _ = ImGui::CreateTabItem("View"))
         {
             drawViewConfig(ctx, io);
+        }
+        if (auto _ = ImGui::CreateTabItem("GameBoy"))
+        {
+            drawGameBoyConfig(ctx);
         }
     }
 }

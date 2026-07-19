@@ -1,6 +1,7 @@
 #include "ini_serializer.hpp"
 
 #include <charconv>
+#include <cstdint>
 #include <map>
 #include <sstream>
 #include <string>
@@ -19,13 +20,21 @@ using Type = IniSerializer::Type;
 struct DataEntry final
 {
     const Type             type;
-    const std::string_view name;
+    const size_t           count;
     void* const            data;
+    const std::string_view name;
 };
 
 struct Registry final
 {
+    using Callbacks = std::map<std::string_view, std::move_only_function<void()>>;
     using Map = std::map<std::string_view, DataEntry>;
+
+    static Callbacks& getCallbacks()
+    {
+        static Callbacks cbs;
+        return cbs;
+    }
 
     static Map& get()
     {
@@ -34,43 +43,55 @@ struct Registry final
     }
 };
 
+template <typename T>
+ALWAYS_INLINE T shift(T ptr, ssize_t off)
+{
+    return reinterpret_cast<T>(reinterpret_cast<uintptr_t>(ptr) + off);
+}
+
 }  // namespace
 
-void IniSerializer::registerData(const std::string_view& name, void* data, Type type)
+void IniSerializer::registerData(const std::string_view& name, void* data, size_t size, Type type)
 {
     auto& registry = Registry::get();
     registry.emplace(
         name,
         DataEntry{
             .type = type,
-            .name = name,
+            .count = size,
             .data = data,
+            .name = name,
         });
 }
 
 std::string IniSerializer::serialize()
 {
     std::stringstream ss;
+
+#define SERIALIZE(ENUM, TYPE) \
+    case Type::ENUM: \
+        ss << *static_cast<const TYPE*>(data); \
+        data = shift(data, sizeof(TYPE)); \
+        break
+
     for (const auto& [_, entry] : Registry::get())
     {
         ss << entry.name << '=';
-        switch (entry.type)
+        const void* data = entry.data;
+        for (size_t i = 0; i < entry.count; ++i)
         {
-            case Type::Bool:
-                ss << *static_cast<const bool*>(entry.data);
-                break;
-            case Type::Int32:
-                ss << *static_cast<const int32_t*>(entry.data);
-                break;
-            case Type::Uint32:
-                ss << *static_cast<const uint32_t*>(entry.data);
-                break;
-            case Type::Float:
-                ss << *static_cast<const float*>(entry.data);
-                break;
-            case Type::String:
-                ss << *static_cast<const std::string*>(entry.data);
-                break;
+            switch (entry.type)
+            {
+                SERIALIZE(Bool, bool);
+                SERIALIZE(Int32, int32_t);
+                SERIALIZE(Uint32, uint32_t);
+                SERIALIZE(Float, float);
+                SERIALIZE(String, std::string);
+            }
+            if (i != entry.count - 1)
+            {
+                ss << ',';
+            }
         }
         ss << '\n';
     }
@@ -103,63 +124,95 @@ DeserializationResult IniSerializer::deserializeLine(std::string_view line)
 #define CONVERT_NUMBER(TYPE) \
     ({ \
         TYPE value{0}; \
-        auto result = std::from_chars(line.data(), line.data() + line.size(), value); \
+        auto result = std::from_chars(toConvert.data(), toConvert.data() + toConvert.size(), value); \
         if (result.ec == std::errc::invalid_argument) [[unlikely]] \
         { \
-            return std::unexpected(fmt::format("Not an integer: {}", line)); \
+            return std::unexpected(fmt::format("Not an integer: {}", toConvert)); \
         } \
         else if (result.ec == std::errc::result_out_of_range) \
         { \
-            return std::unexpected(fmt::format("Out of range: {}", line)); \
+            return std::unexpected(fmt::format("Out of range: {}", toConvert)); \
         } \
         value; \
     })
 
-    switch (entry.type)
+    void* data = entry.data;
+
+    for (size_t i = 0; i < entry.count; ++i)
     {
-        case Type::Bool:
+        auto comma = line.find(',');
+        if (comma == line.npos)
         {
-            auto value = CONVERT_NUMBER(uint8_t);
-            if (value != 0 and value != 1)
+            if (i != entry.count - 1)
             {
-                return std::unexpected(fmt::format("Invalid value for bool: {}", line));
+                return std::unexpected(fmt::format("Expected \",\": {}", line));
             }
-            *static_cast<bool*>(entry.data) = value;
-            break;
+            comma = line.size();
         }
-
-        case Type::Int32:
+        auto toConvert = line.substr(0, comma);
+        switch (entry.type)
         {
-            auto value = CONVERT_NUMBER(int32_t);
-            *static_cast<int32_t*>(entry.data) = value;
-            break;
-        }
+            case Type::Bool:
+            {
+                auto value = CONVERT_NUMBER(uint8_t);
+                if (value != 0 and value != 1)
+                {
+                    return std::unexpected(fmt::format("Invalid value for bool: {}", line));
+                }
+                *static_cast<bool*>(data) = value;
+                data = shift(data, sizeof(bool));
+                break;
+            }
 
-        case Type::Uint32:
-        {
-            auto value = CONVERT_NUMBER(uint32_t);
-            *static_cast<uint32_t*>(entry.data) = value;
-            break;
-        }
+            case Type::Int32:
+            {
+                auto value = CONVERT_NUMBER(int32_t);
+                *static_cast<int32_t*>(data) = value;
+                data = shift(data, sizeof(int32_t));
+                break;
+            }
 
-        case Type::Float:
-        {
-            auto value = CONVERT_NUMBER(float);
-            *static_cast<float*>(entry.data) = value;
-            break;
-        }
+            case Type::Uint32:
+            {
+                auto value = CONVERT_NUMBER(uint32_t);
+                *static_cast<uint32_t*>(data) = value;
+                data = shift(data, sizeof(uint32_t));
+                break;
+            }
 
-        case Type::String:
-        {
-            *static_cast<std::string*>(entry.data) = line;
-            break;
-        }
+            case Type::Float:
+            {
+                auto value = CONVERT_NUMBER(float);
+                *static_cast<float*>(data) = value;
+                data = shift(data, sizeof(float));
+                break;
+            }
 
-        default:
-            break;
+            case Type::String:
+            {
+                *static_cast<std::string*>(data) = toConvert;
+                data = shift(data, sizeof(std::string));
+                break;
+            }
+
+            default:
+                break;
+        }
+        line.remove_prefix(comma + 1);
+    }
+
+    auto& callbacks = Registry::getCallbacks();
+    if (auto it = callbacks.find(name); it != callbacks.end())
+    {
+        it->second();
     }
 
     return true;
+}
+
+void IniSerializer::onLoaded(const std::string_view& name, std::move_only_function<void()> callback)
+{
+    Registry::getCallbacks().emplace(name, std::move(callback));
 }
 
 }  // namespace core

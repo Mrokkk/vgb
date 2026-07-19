@@ -66,20 +66,9 @@ void drawEmulationWindow(Context& ctx)
 
     ImGui::SeparatorText("Save RAM");
     {
-        const bool dirty = gb.cartridge.isRamDirty();
-        if (not dirty)
-        {
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-        }
-        if (ImGui::Button("Save"))
+        if (ImGui::Button("Save", gb.cartridge.isRamDirty()))
         {
             gb.saveRam();
-        }
-        if (not dirty)
-        {
-            ImGui::PopItemFlag();
-            ImGui::PopStyleVar();
         }
     }
 

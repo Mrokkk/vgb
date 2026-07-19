@@ -49,6 +49,8 @@ DEFINE_RAII_WRAPPER(Combo, ImGui::BeginCombo, ImGui::EndCombo, false)
 DEFINE_RAII_WRAPPER(TabBar, ImGui::BeginTabBar, ImGui::EndTabBar, false)
 DEFINE_RAII_WRAPPER(TabItem, ImGui::BeginTabItem, ImGui::EndTabItem, false)
 
+bool Button(const char* label, bool enabled, const ImVec2& size = ImVec2(0, 0));
+
 template <typename ...Args>
 ALWAYS_INLINE bool SameLineButton(Args&&... args)
 {

@@ -8,6 +8,7 @@
 #include <rlImGui.h>
 
 #include "config.hpp"
+#include "core/ini_serializer.hpp"
 #include "core/logger.hpp"
 #include "debugger/gui/main.hpp"
 #include "game_boy.hpp"
@@ -24,6 +25,10 @@ namespace sys::raylib
 #define RAYLIB_LOG 1
 #define DEFAULT_SCALE 6
 
+ALWAYS_INLINE static uint8_t byte0(uint32_t v) { return (v      ) & 0xff; }
+ALWAYS_INLINE static uint8_t byte1(uint32_t v) { return (v >> 8 ) & 0xff; }
+ALWAYS_INLINE static uint8_t byte2(uint32_t v) { return (v >> 16) & 0xff; }
+
 struct RaylibRenderer final : Renderer
 {
     RaylibRenderer(const Config& config);
@@ -34,6 +39,9 @@ struct RaylibRenderer final : Renderer
     unsigned int renderMap(bool drawWindow) override;
     ALWAYS_INLINE void drawWindow();
     ALWAYS_INLINE void drawRectangle(float x, float y, float width, float height);
+    uint32_t* getPalette() override;
+    void setPalette(uint32_t* p) override;
+    void updateColors();
 
 private:
     bool          mDebuggerMode;
@@ -42,12 +50,9 @@ private:
     Image         mMapImage;
     Texture2D     mMapTexture;
 
-    static constexpr Color colors[] = {
-        {0xd0, 0xd0, 0xd0, 0xff},
-        {0x80, 0x80, 0x80, 0xff},
-        {0x50, 0x50, 0x50, 0xff},
-        {0x00, 0x00, 0x00, 0xff},
-    };
+    INI_SAVED_ARRAY(uint32_t, 4, palette);
+
+    Color colors[4];
 };
 
 static void raylibLogFormat(int msgType, const char* text, va_list args)
@@ -76,6 +81,12 @@ static void raylibLogFormat(int msgType, const char* text, va_list args)
 
 RaylibRenderer::RaylibRenderer(const Config& config)
 {
+    palette[0] = 0xd0d0d0;
+    palette[1] = 0x808080;
+    palette[2] = 0x505050;
+    palette[3] = 0x000000;
+    updateColors();
+
     SetConfigFlags(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_RESIZABLE);
     SetTraceLogCallback(raylibLogFormat);
     SetTargetFPS(60);
@@ -98,6 +109,7 @@ RaylibRenderer::RaylibRenderer(const Config& config)
     }
 
     SaveSerializer::registerData("screenImage", mScreenImage.data, mScreenImage.height * mScreenImage.width * 4);
+    core::IniSerializer::onLoaded("palette", [this]{ updateColors(); });
 }
 
 RaylibRenderer::~RaylibRenderer()
@@ -128,6 +140,11 @@ void RaylibRenderer::render()
     }
 
     UpdateTexture(mScreenTexture, mScreenImage.data);
+
+    if (IsKeyReleased(KEY_F12))
+    {
+        mDebuggerMode ^= true;
+    }
 
     RENDER()
     {
@@ -163,6 +180,26 @@ void RaylibRenderer::drawPixel(uint8_t x, uint8_t y, uint16_t color)
 ALWAYS_INLINE void RaylibRenderer::drawRectangle(float x, float y, float width, float height)
 {
     ImageDrawRectangleLines(&mMapImage, Rectangle{.x = x, .y = y, .width = width, .height = height}, 1, RED);
+}
+
+uint32_t* RaylibRenderer::getPalette()
+{
+    return palette;
+}
+
+void RaylibRenderer::setPalette(uint32_t* p)
+{
+    memcpy(palette, p, 4 * sizeof(uint32_t));
+    updateColors();
+}
+
+void RaylibRenderer::updateColors()
+{
+    auto p = palette;
+    for (size_t i = 0; i < 4; ++i)
+    {
+        colors[i] = Color{byte0(p[i]), byte1(p[i]), byte2(p[i]), 0xff};
+    }
 }
 
 ALWAYS_INLINE void RaylibRenderer::drawWindow()

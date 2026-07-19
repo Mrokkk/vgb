@@ -26,4 +26,20 @@ void ImageCentered(ImTextureID texture, size_t ratioX, size_t ratioY)
     ImGui::Image(texture, imageSize);
 }
 
+bool Button(const char* label, bool enabled, const ImVec2& size)
+{
+    if (not enabled)
+    {
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+    }
+    auto result = Button(label, size);
+    if (not enabled)
+    {
+        ImGui::PopItemFlag();
+        ImGui::PopStyleVar();
+    }
+    return result;
+}
+
 }  // namespace ImGui

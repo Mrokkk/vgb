@@ -43,6 +43,8 @@ FetchContent_Declare(argh
 )
 FetchContent_MakeAvailable(argh)
 
+target_compile_definitions(raylib PUBLIC -DSUPPORT_SCREEN_CAPTURE=0)
+
 add_library(imgui OBJECT
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp

@@ -69,6 +69,4 @@ void drawSystemStatsWindow(Context& ctx)
     ImGui::PlotHistogram("##Alloc usage", &getAllocUsageAt, nullptr, allocUsagePlotData.size(), 0, nullptr, 0.f, FLT_MAX, ImVec2{0, 80});
 }
 
-
-
 }  // namespace debugger::gui
