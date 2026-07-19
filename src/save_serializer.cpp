@@ -124,6 +124,12 @@ struct DataEntry final
     uint32_t   size;
 };
 
+struct SerializedEvent final
+{
+    uint64_t when;
+    uint64_t period;
+};
+
 struct SerializedDataEntry final
 {
     uint16_t sig;
@@ -214,7 +220,7 @@ void SaveSerializer::registerData(const std::string_view& name, Event& event)
         DataEntry{
             .type = DataType::Event,
             .event = &event,
-            .size = sizeof(uint64_t),
+            .size = sizeof(SerializedEvent),
         });
 }
 
@@ -261,8 +267,11 @@ SerializationResult SaveSerializer::serialize()
                 writer.writeAt(entry.data, e.dataOffset, entry.size);
                 break;
             case DataType::Event:
-                uint64_t when = entry.event->isActive() ? entry.event->getWhen() : 0;
-                writer.writeAt(&when, e.dataOffset, sizeof(when));
+                SerializedEvent ev{
+                    .when = entry.event->isActive() ? entry.event->getWhen() : 0,
+                    .period = entry.event->getPeriod(),
+                };
+                writer.writeAt(&ev, e.dataOffset, sizeof(ev));
                 break;
         }
     }
@@ -338,7 +347,7 @@ DeserializationResult SaveSerializer::deserialize(const void* data, size_t size)
             goto unexpectedEof;
         }
 
-        if (entry.type == DataType::Event and e.dataSize != sizeof(uint64_t)) [[unlikely]]
+        if (entry.type == DataType::Event and e.dataSize != sizeof(SerializedEvent)) [[unlikely]]
         {
             return error("incorrect event data size");
         }
@@ -360,11 +369,12 @@ DeserializationResult SaveSerializer::deserialize(const void* data, size_t size)
                 break;
 
             case DataType::Event:
-                uint64_t when = 0;
-                reader.readAt(&when, e.dataOffset, e.dataSize);
-                if (when)
+                SerializedEvent ev;
+                reader.readAt(&ev, e.dataOffset, e.dataSize);
+                e.dataEntry.event->setPeriod(ev.period);
+                if (ev.when)
                 {
-                    gb.events.scheduleEvent(*e.dataEntry.event, when);
+                    gb.events.scheduleEvent(*e.dataEntry.event, ev.when);
                 }
                 break;
         }

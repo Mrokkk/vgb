@@ -54,6 +54,11 @@ struct Event final
         return when;
     }
 
+    size_t getPeriod() const
+    {
+        return data.period;
+    }
+
     const char* getName() const
     {
         return data.name;
