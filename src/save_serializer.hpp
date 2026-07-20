@@ -27,7 +27,7 @@ struct SaveSerializer
     template <typename T, size_t Size>
     ALWAYS_INLINE static void registerData(const std::string_view& name, T (&data)[Size])
     {
-        registerData(name, reinterpret_cast<void*>(data), Size);
+        registerData(name, reinterpret_cast<void*>(data), Size * sizeof(T));
     }
 
     static void registerData(const std::string_view& name, void* data, size_t size);
