@@ -13,3 +13,4 @@ __pycache__
 /src/assembler/parser.cpp
 /src/assembler/parser.hpp
 /src/assembler/parser.out
+tmp

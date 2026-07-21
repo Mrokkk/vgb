@@ -53,6 +53,7 @@ static void writeIni(ImGuiContext*, ImGuiSettingsHandler* s, ImGuiTextBuffer* bu
 
 void init(Context& ctx)
 {
+    ctx.gui.minimalMode = false;
     ctx.gui.messageTime = 180;
     ctx.gui.messageFadeOutTime = 60;
     ctx.gui.fonts = sys::getFonts();
@@ -184,22 +185,25 @@ ALWAYS_INLINE static void drawMenuBar(Context& ctx)
         }
     }
 
-    if (auto menu = ImGui::CreateMenu("View"))
+    if (not ctx.gui.minimalMode)
     {
-        ImGui::BoolMenuItem("Emulation", nullptr, ctx.gui.emulationWindow);
-        ImGui::BoolMenuItem("Cartridge", nullptr, ctx.gui.cartridgeWindow);
-        ImGui::BoolMenuItem("CPU", nullptr, ctx.gui.cpuWindow);
-        ImGui::BoolMenuItem("Memory", nullptr, ctx.gui.memEditorWindow);
-        ImGui::BoolMenuItem("Disassembly window", nullptr, ctx.gui.disassemblyWindow);
-        ImGui::BoolMenuItem("Callstack window", nullptr, ctx.gui.callstackWindow);
-        ImGui::BoolMenuItem("IO", nullptr, ctx.gui.ioWindow);
-        ImGui::BoolMenuItem("Map", nullptr, ctx.gui.mapWindow);
-        ImGui::BoolMenuItem("Console", "`", ctx.gui.consoleWindow);
-        ImGui::BoolMenuItem("Game", nullptr, ctx.gui.gameWindow);
-        ImGui::BoolMenuItem("Log", nullptr, ctx.gui.logWindow);
-        ImGui::BoolMenuItem("System stats", nullptr, ctx.gui.systemStatsWindow);
-        ImGui::BoolMenuItem("Style Editor", nullptr, ctx.gui.styleEditorWindow);
-        ImGui::BoolMenuItem("Demo", nullptr, ctx.gui.demoWindow);
+        if (auto menu = ImGui::CreateMenu("View"))
+        {
+            ImGui::BoolMenuItem("Emulation", nullptr, ctx.gui.emulationWindow);
+            ImGui::BoolMenuItem("Cartridge", nullptr, ctx.gui.cartridgeWindow);
+            ImGui::BoolMenuItem("CPU", nullptr, ctx.gui.cpuWindow);
+            ImGui::BoolMenuItem("Memory", nullptr, ctx.gui.memEditorWindow);
+            ImGui::BoolMenuItem("Disassembly window", nullptr, ctx.gui.disassemblyWindow);
+            ImGui::BoolMenuItem("Callstack window", nullptr, ctx.gui.callstackWindow);
+            ImGui::BoolMenuItem("IO", nullptr, ctx.gui.ioWindow);
+            ImGui::BoolMenuItem("Map", nullptr, ctx.gui.mapWindow);
+            ImGui::BoolMenuItem("Console", "`", ctx.gui.consoleWindow);
+            ImGui::BoolMenuItem("Game", nullptr, ctx.gui.gameWindow);
+            ImGui::BoolMenuItem("Log", nullptr, ctx.gui.logWindow);
+            ImGui::BoolMenuItem("System stats", nullptr, ctx.gui.systemStatsWindow);
+            ImGui::BoolMenuItem("Style Editor", nullptr, ctx.gui.styleEditorWindow);
+            ImGui::BoolMenuItem("Demo", nullptr, ctx.gui.demoWindow);
+        }
     }
 }
 
@@ -217,7 +221,7 @@ ALWAYS_INLINE static void drawDemoWindow(Context& ctx)
     }
 }
 
-void render(unsigned int gameTextureId)
+void render()
 {
     const auto dockspaceId = ImGui::GetID("vgb dockspace");
     const auto viewport = ImGui::GetMainViewport();
@@ -226,33 +230,48 @@ void render(unsigned int gameTextureId)
 
     auto& ctx = *reinterpret_cast<Context*>(gb.debuggerData);
 
-    drawMenuBar(ctx);
-    drawLcdWindow(ctx, gameTextureId);
-    drawCartridgeWindow(ctx);
-    drawCpuWindow(ctx);
-    drawMemoryWindow(ctx);
-    drawIoWindow(ctx);
-    drawConsoleWindow(ctx);
-    drawMapWindow(ctx);
-    drawGameWindow(ctx);
-    drawLogWindow(ctx);
-    drawEmulationWindow(ctx);
-    drawDisassemblyWindow(ctx);
-    drawCallstackWindow(ctx);
-    drawSystemStatsWindow(ctx);
-
-    drawStyleEditorWindow(ctx);
-    drawDemoWindow(ctx);
-
-    drawMessages(ctx);
-    drawConfigWindow(ctx);
-
-    if (ImGui::IsKeyReleased(ImGuiKey_GraveAccent))
+    if (ImGui::IsKeyReleased(ImGuiKey_F12))
     {
-        if (ctx.gui.consoleWindow ^= true)
+        ctx.gui.minimalMode ^= true;
+    }
+
+    if (ctx.gui.minimalMode)
+    {
+        drawMenuBar(ctx);
+        drawMinimalLcdWindow(ctx);
+        drawMessages(ctx);
+        drawConfigWindow(ctx);
+    }
+    else
+    {
+        drawMenuBar(ctx);
+        drawLcdWindow(ctx);
+        drawCartridgeWindow(ctx);
+        drawCpuWindow(ctx);
+        drawMemoryWindow(ctx);
+        drawIoWindow(ctx);
+        drawConsoleWindow(ctx);
+        drawMapWindow(ctx);
+        drawGameWindow(ctx);
+        drawLogWindow(ctx);
+        drawEmulationWindow(ctx);
+        drawDisassemblyWindow(ctx);
+        drawCallstackWindow(ctx);
+        drawSystemStatsWindow(ctx);
+
+        drawStyleEditorWindow(ctx);
+        drawDemoWindow(ctx);
+
+        drawMessages(ctx);
+        drawConfigWindow(ctx);
+
+        if (ImGui::IsKeyReleased(ImGuiKey_GraveAccent))
         {
-            ImGui::SetWindowFocus("Console");
-            ctx.gui.focusCmdLine = true;
+            if (ctx.gui.consoleWindow ^= true)
+            {
+                ImGui::SetWindowFocus("Console");
+                ctx.gui.focusCmdLine = true;
+            }
         }
     }
 

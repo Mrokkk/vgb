@@ -4,7 +4,7 @@
 #include <imgui_ext.h>
 
 #include "debugger/gui/helpers.hpp"
-#include "sys/platform.hpp"
+#include "ppu.hpp"
 
 namespace debugger::gui
 {
@@ -13,7 +13,8 @@ void drawMapWindow(Context& ctx)
 {
     CREATE_WINDOW("Map", ctx.gui.mapWindow);
     ImGui::Checkbox("Show SCX/SCY window", &ctx.gui.showScxScy.get());
-    ImGui::ImageCentered(static_cast<ImTextureID>(sys::platform.renderer->renderMap(ctx.gui.showScxScy)), 1, 1);
+    auto texture = renderMap(ctx.gui.showScxScy);
+    ImGui::ImageCentered(static_cast<ImTextureID>(texture.backendId), 1, 1);
 }
 
 }  // namespace debugger::gui

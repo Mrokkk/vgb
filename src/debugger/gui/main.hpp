@@ -7,6 +7,6 @@ namespace debugger::gui
 
 void init(Context& ctx);
 void deinit(Context& ctx);
-void render(unsigned int gameTextureId);
+void render();
 
 }  // namespace debugger::gui

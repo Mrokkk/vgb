@@ -5,6 +5,7 @@
 namespace debugger::gui
 {
 
-void drawLcdWindow(Context& ctx, unsigned int gameTextureId);
+void drawMinimalLcdWindow(Context& ctx);
+void drawLcdWindow(Context& ctx);
 
 }  // namespace debugger::gui

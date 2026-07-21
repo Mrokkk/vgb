@@ -9,6 +9,7 @@
 #include "event_system.hpp"
 #include "fwd.hpp"
 #include "memory/cartridge.hpp"
+#include "sys/renderer.hpp"
 #include "utils/immobile.hpp"
 #include "utils/unique_ptr.hpp"
 
@@ -47,6 +48,7 @@ struct GameBoy final : utils::Immobile
     memory::Cartridge cartridge;
     EventSystem       events;
     Callback          scheduledCallback;
+    sys::Texture      lcd;
 
     ComponentPtr components[Component::Type::Last + 1];
     Config config;

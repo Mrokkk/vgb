@@ -71,7 +71,6 @@ struct Platform
 
 extern Platform platform;
 
-void frame();
 void abortMainThread();
 MaybeMappedFile mapFile(const std::string_view& path, bool readOnly = true);
 void stacktraceLog();

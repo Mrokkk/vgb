@@ -21,6 +21,7 @@ struct Message final
 
 struct GUI final
 {
+    INI_SAVED(bool,        minimalMode);
     INI_SAVED(bool,        commandEntered);
     INI_SAVED(bool,        emulationWindow);
     INI_SAVED(bool,        cartridgeWindow);

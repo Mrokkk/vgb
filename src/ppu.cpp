@@ -6,6 +6,7 @@
 #include <fmt/base.h>
 
 #include "component.hpp"
+#include "core/ini_serializer.hpp"
 #include "cpu/sm83.hpp"
 #include "event.hpp"
 #include "fwd.hpp"
@@ -13,12 +14,32 @@
 #include "memory/generic.hpp"
 #include "save_serializer.hpp"
 #include "sys/platform.hpp"
+#include "sys/renderer.hpp"
 #include "utils/inline.hpp"
 #include "utils/unique_ptr.hpp"
+
+enum
+{
+    GB_TILE_RESX      = 8,
+    GB_TILE_RESY      = 8,
+    GB_TILE_BYTES     = 16,
+
+    GB_TILE_DATA_RESX = 256,
+    GB_TILE_DATA_RESY = 256,
+
+    GB_OAM_SIZE       = 0xa0,
+
+    FRAME_DURATION    = 70224,
+    HSYNC_DURATION    = 456,
+    DMA_DURATION      = 620,
+    VSYNC_LY_START    = 144,
+    VSYNC_LY_END      = 154,
+};
 
 struct Ppu final : Component
 {
     Ppu();
+    ~Ppu();
 
     void reset() override;
 
@@ -36,6 +57,8 @@ struct Ppu final : Component
 
     ALWAYS_INLINE void updateBgPalette();
     ALWAYS_INLINE void updateObjPalette();
+
+    ALWAYS_INLINE void renderMap(bool drawScxScyWindow);
 
     struct IOImpl;
     IOImpl& getIo();
@@ -56,25 +79,10 @@ struct Ppu final : Component
     IO        io;
     uint8_t   bgPalette[4];
     uint8_t   objPalette[8];
-};
-
-enum
-{
-    GB_TILE_RESX      = 8,
-    GB_TILE_RESY      = 8,
-    GB_TILE_BYTES     = 16,
-
-    GB_TILE_DATA_RESX = 256,
-    GB_TILE_DATA_RESY = 256,
-    SCALING           = 5,
-
-    GB_OAM_SIZE       = 0xa0,
-
-    FRAME_DURATION    = 70224,
-    HSYNC_DURATION    = 456,
-    DMA_DURATION      = 620,
-    VSYNC_LY_START    = 144,
-    VSYNC_LY_END      = 154,
+    INI_SAVED_ARRAY(uint32_t, 4, palette);
+    uint32_t  lcd[GB_LCD_RESX * GB_LCD_RESY];
+    uint32_t* map;
+    sys::Texture mapTexture;
 };
 
 template <typename T, T MAX>
@@ -196,7 +204,15 @@ Ppu::Ppu()
         .period = HSYNC_DURATION,
         .callback = [this](size_t){ mode3Callback(); }
     }))
+    , map(nullptr)
 {
+    gb.lcd = sys::platform.renderer->createTexture(GB_LCD_RESX, GB_LCD_RESY, lcd);
+
+    palette[0] = 0xd0d0d0;
+    palette[1] = 0x808080;
+    palette[2] = 0x505050;
+    palette[3] = 0x000000;
+
     SaveSerializer::registerData("ppu.io", io.data);
     SaveSerializer::registerData("ppu.bgPalette", bgPalette);
     SaveSerializer::registerData("ppu.objPalette", objPalette);
@@ -205,7 +221,16 @@ Ppu::Ppu()
     SaveSerializer::registerData("ppu.mode1", mode1);
     SaveSerializer::registerData("ppu.mode2", mode2);
     SaveSerializer::registerData("ppu.mode3", mode3);
+    SaveSerializer::registerData("screenImage", lcd);
     initPpu();
+}
+
+Ppu::~Ppu()
+{
+    if (map)
+    {
+        free(map);
+    }
 }
 
 ALWAYS_INLINE Ppu::IOImpl& Ppu::getIo()
@@ -411,7 +436,7 @@ void Ppu::drawLine()
                 }
                 if (not obj->attr.prio or bgColor == 0)
                 {
-                    sys::platform.renderer->drawPixel(x, y, objPalette[color + obj->attr.dmgPalette * 4]);
+                    lcd[y * GB_LCD_RESX + x] = palette[objPalette[color + obj->attr.dmgPalette * 4]] | 0xff000000;
                     gotObj = true;
                 }
                 break;
@@ -419,7 +444,7 @@ void Ppu::drawLine()
         }
         if (not gotObj)
         {
-            sys::platform.renderer->drawPixel(x, y, bgPalette[bgColor]);
+            lcd[y * GB_LCD_RESX + x] = palette[bgPalette[bgColor]] | 0xff000000;
         }
     }
 }
@@ -481,7 +506,7 @@ void Ppu::dmaCallback()
 {
     auto& io = getIo();
     auto& mem = gb.cpu.mem;
-    uint16_t src = ((uint16_t)io.dma << 8);
+    uint16_t src = static_cast<uint16_t>(io.dma) << 8;
 
     for (uint16_t i = 0; i < GB_OAM_SIZE; ++i)
     {
@@ -507,6 +532,81 @@ ALWAYS_INLINE void Ppu::updateObjPalette()
     }
 }
 
+static void drawHorizontalLine(uint32_t* pixels, int resX, int resY, int x, int y, int len, uint32_t color)
+{
+    y = y % resY;
+    for (int i = x; i < x + len; ++i)
+    {
+        int relative = i % resX;
+        pixels[y * resX + relative] = color;
+    }
+}
+
+static void drawVerticalLine(uint32_t* pixels, int resX, int resY, int x, int y, int len, uint32_t color)
+{
+    x = x % resX;
+    for (int i = y; i < y + len; ++i)
+    {
+        int relative = i % resY;
+        pixels[relative * resX + x] = color;
+    }
+}
+
+ALWAYS_INLINE void Ppu::renderMap(bool drawScxScyWindow)
+{
+    if (not map)
+    {
+        map = static_cast<uint32_t*>(malloc(GB_TILE_DATA_RESX * GB_TILE_DATA_RESY * sizeof(uint32_t)));
+        mapTexture = sys::platform.renderer->createTexture(GB_TILE_DATA_RESX, GB_TILE_DATA_RESY, map);
+    }
+
+    auto& io = getIo();
+
+    const auto bgMemory = io.lcdc.bgTileMapArea
+        ? 0x1c00
+        : 0x1800;
+
+    const auto tileData = io.lcdc.bgWindowDataArea
+        ? 0x0000
+        : 0x0800;
+
+    const auto& vram = gb.cpu.mem.vram;
+
+    for (size_t tileY = 0; tileY < 32; ++tileY)
+    {
+        for (size_t tileX = 0; tileX < 32; ++tileX)
+        {
+            const auto tileAddr = bgMemory + tileY * 32 + tileX;
+            const auto tileId = io.lcdc.bgWindowDataArea
+                ? vram.data[tileAddr]
+                : 128 + (int8_t)vram.data[tileAddr];
+
+            for (uint8_t y = 0; y < GB_TILE_RESY; ++y)
+            {
+                const auto byte1 = vram.data[tileData + tileId * 16 + y * 2];
+                const auto byte2 = vram.data[tileData + tileId * 16 + y * 2 + 1];
+
+                for (uint8_t x = 0; x < GB_TILE_RESX; ++x)
+                {
+                    const auto color
+                        = (((byte1 >> (7 - x)) & 1))
+                        | (((byte2 >> (7 - x)) & 1) << 1);
+                    map[(y + tileY * 8) * GB_TILE_DATA_RESX + x + tileX * 8] = palette[bgPalette[color]] | 0xff000000;
+                }
+            }
+        }
+    }
+    if (drawScxScyWindow)
+    {
+        const auto scx = io.scx;
+        const auto scy = io.scy;
+        drawHorizontalLine(map, GB_TILE_DATA_RESX, GB_TILE_DATA_RESY, scx, scy, GB_LCD_RESX, 0xff0000ff);
+        drawHorizontalLine(map, GB_TILE_DATA_RESX, GB_TILE_DATA_RESY, scx, scy + GB_LCD_RESY, GB_LCD_RESX, 0xff0000ff);
+        drawVerticalLine(map, GB_TILE_DATA_RESX, GB_TILE_DATA_RESY, scx, scy, GB_LCD_RESY, 0xff0000ff);
+        drawVerticalLine(map, GB_TILE_DATA_RESX, GB_TILE_DATA_RESY, scx + GB_LCD_RESX, scy, GB_LCD_RESY, 0xff0000ff);
+    }
+}
+
 void Ppu::IO::store(uint8_t addr, uint8_t value)
 {
     return BaseIO::store(addr, value);
@@ -520,4 +620,23 @@ uint8_t Ppu::IO::load(uint8_t addr) const
 void createPpu(GameBoy& gb)
 {
     gb.registerComponent(Component::Ppu, utils::makeUnique<Ppu>());
+}
+
+uint32_t* getPalette(GameBoy& gb)
+{
+    auto& ppu = *static_cast<Ppu*>(gb.components[+Component::Ppu].get());
+    return ppu.palette.get();
+}
+
+void setPalette(GameBoy& gb, uint32_t* palette)
+{
+    auto& ppu = *static_cast<Ppu*>(gb.components[+Component::Ppu].get());
+    memcpy(ppu.palette, palette, sizeof(ppu.palette));
+}
+
+sys::Texture renderMap(bool drawScxScyWindow)
+{
+    auto& ppu = *static_cast<Ppu*>(gb.components[+Component::Ppu].get());
+    ppu.renderMap(drawScxScyWindow);
+    return ppu.mapTexture;
 }

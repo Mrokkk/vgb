@@ -61,6 +61,7 @@ add_library(rlimgui OBJECT
 target_include_directories(rlimgui PUBLIC ${rlimgui_SOURCE_DIR})
 target_link_libraries(rlimgui PRIVATE raylib imgui)
 target_compile_options(rlimgui PRIVATE -Wno-error)
+target_compile_definitions(rlimgui PRIVATE -DNO_FONT_AWESOME)
 
 include(FindPkgConfig)
 pkg_check_modules(BACKTRACE libbacktrace)

@@ -7,14 +7,21 @@
 namespace sys
 {
 
+using TextureId = unsigned long;
+
+struct Texture
+{
+    int       index;
+    TextureId backendId;
+    uint32_t* pixels;
+};
+
 struct Renderer
 {
     virtual ~Renderer() = default;
-    virtual void render() = 0;
-    virtual void drawPixel(uint8_t x, uint8_t y, uint16_t color) = 0;
-    virtual unsigned int renderMap(bool drawWindow) = 0;
-    virtual uint32_t* getPalette() = 0;
-    virtual void setPalette(uint32_t* palette) = 0;
+    virtual Texture createTexture(int resX, int resY, void* pixels) = 0;
+    virtual void beginRendering() = 0;
+    virtual void endRendering() = 0;
 };
 
 using RendererPtr = utils::UniquePtr<Renderer>;

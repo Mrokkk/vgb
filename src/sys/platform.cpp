@@ -2,7 +2,6 @@
 
 #include "error.hpp"
 #include "sys/mapped_file.hpp"
-#include "sys/supervision.hpp"
 
 namespace sys
 {
@@ -39,13 +38,6 @@ MaybeMappedFile mapFile(const std::string_view& path, bool readOnly)
         result->ptr,
         result->size
     };
-}
-
-void frame()
-{
-    pingSupervision();
-    platform.input->update();
-    platform.renderer->render();
 }
 
 void abortMainThread()

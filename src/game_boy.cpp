@@ -11,10 +11,12 @@
 #include "config.hpp"
 #include "core/logger.hpp"
 #include "cpu/sm83.hpp"
+#include "debugger/gui/main.hpp"
 #include "joypad.hpp"
 #include "ppu.hpp"
 #include "save_manager.hpp"
 #include "sys/platform.hpp"
+#include "sys/supervision.hpp"
 #include "timer.hpp"
 #include "utils/unique_ptr.hpp"
 
@@ -138,7 +140,20 @@ void GameBoy::frame()
     if ((counter++ % speedMultiplier) == 0)
     {
         ++frameNumber;
-        sys::frame();
+
+        auto& re = *sys::platform.renderer;
+        auto& input = *sys::platform.input;
+
+        sys::pingSupervision();
+
+        input.update();
+
+        if (gb.config.mode != Mode::Headless)
+        {
+            re.beginRendering();
+            debugger::gui::render();
+            re.endRendering();
+        }
     }
 }
 

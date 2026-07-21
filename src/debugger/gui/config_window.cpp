@@ -5,7 +5,7 @@
 #include <imgui.h>
 #include <imgui_ext.h>
 
-#include "sys/platform.hpp"
+#include "ppu.hpp"
 
 namespace debugger::gui
 {
@@ -89,12 +89,12 @@ static void updatePalette(const ImVec4* colors)
         ImGui::GetColorU32(colors[2]) & 0xffffff,
         ImGui::GetColorU32(colors[3]) & 0xffffff,
     };
-    sys::platform.renderer->setPalette(palette);
+    setPalette(gb, palette);
 }
 
 static void readPalette(ImVec4* colors)
 {
-    auto palette = sys::platform.renderer->getPalette();
+    auto palette = getPalette(gb);
 
     for (size_t i = 0; i < 4; ++i)
     {

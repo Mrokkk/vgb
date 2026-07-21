@@ -19,11 +19,9 @@ namespace
 
 struct DummyRenderer final : Renderer
 {
-    void render() override {}
-    void drawPixel(uint8_t, uint8_t, uint16_t) override {}
-    unsigned int renderMap(bool) override { return -1; }
-    uint32_t* getPalette() override { return nullptr; }
-    void setPalette(uint32_t*) override { }
+    Texture createTexture(int, int, void*) { return {}; }
+    void beginRendering() {}
+    void endRendering() {}
 };
 
 struct DummyInput : Input
