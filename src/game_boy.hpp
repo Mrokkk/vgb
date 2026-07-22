@@ -43,6 +43,7 @@ struct GameBoy final : utils::Immobile
 
     State             state;
     unsigned          speedMultiplier;
+    size_t            counter;
     size_t            frameNumber;
     cpu::SM83         cpu;
     memory::Cartridge cartridge;

@@ -108,6 +108,14 @@ read_flags()
                 fi
                 SANITIZE="${temp}"
                 ;;
+            --profile=*)
+                temp="${1#*=}"
+                if [ "${temp}" != "${PROFILE}" ]
+                then
+                    REGENERATE="true"
+                fi
+                PROFILE="${temp}"
+                ;;
             --build-tests=*)
                 temp="${1#*=}"
                 if [ "${temp}" != "${BUILD_TESTS}" ]
@@ -143,6 +151,7 @@ regenerate_cmake()
             -DSANITIZE=${SANITIZE} \
             -DCOVERAGE=${COVERAGE} \
             -DBUILD_TESTS=${BUILD_TESTS} \
+            -DPROFILE=${PROFILE} \
             -GNinja \
             -B "${BUILD_DIR}" "${SRC_DIR}"
     fi
@@ -250,6 +259,7 @@ OPTIMIZE="ON"
 LTO="OFF"
 COVERAGE="OFF"
 SANITIZE="OFF"
+PROFILE="OFF"
 BUILD_TESTS="OFF"
 
 read_cache

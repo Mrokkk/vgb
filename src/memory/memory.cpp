@@ -20,8 +20,6 @@ uint8_t dmgBootRom[0x100] = {
 Memory::Memory()
     : mBootRomEnabled(true)
 {
-    vram.bank = 0;
-    bankedWorkRam.bank = 0;
     SaveSerializer::registerData("memory.vram", vram);
     SaveSerializer::registerData("memory.baseWorkRam", baseWorkRam);
     SaveSerializer::registerData("memory.bankedWorkRam", bankedWorkRam);
@@ -92,10 +90,10 @@ uint8_t Memory::load8(uint16_t addr) const
             switch (relative)
             {
                 IO_MEMORY_RANGE(0x00, 0x01):
-                    return gb.components[Component::Joypad]->load(relative);
+                    return gb.components[Component::Joypad]->load(relative - 0x00);
 
                 IO_MEMORY_RANGE(0x01, 0x03):
-                    return gb.components[Component::Serial]->load(relative);
+                    return gb.components[Component::Serial]->load(relative - 0x01);
 
                 IO_MEMORY_RANGE(0x04, 0x08):
                     return gb.components[Component::Timer]->load(relative - 0x04);

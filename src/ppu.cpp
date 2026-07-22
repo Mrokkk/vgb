@@ -204,14 +204,16 @@ Ppu::Ppu()
         .period = HSYNC_DURATION,
         .callback = [this](size_t){ mode3Callback(); }
     }))
+    , palette{
+        0xd0d0d0,
+        0x808080,
+        0x505050,
+        0x000000,
+    }
+    , lcd{}
     , map(nullptr)
 {
     gb.lcd = sys::platform.renderer->createTexture(GB_LCD_RESX, GB_LCD_RESY, lcd);
-
-    palette[0] = 0xd0d0d0;
-    palette[1] = 0x808080;
-    palette[2] = 0x505050;
-    palette[3] = 0x000000;
 
     SaveSerializer::registerData("ppu.io", io.data);
     SaveSerializer::registerData("ppu.bgPalette", bgPalette);
@@ -454,7 +456,10 @@ ALWAYS_INLINE void Ppu::mode0Callback()
     auto& io = getIo();
     if (io.ly < 144)
     {
-        drawLine();
+        if ((gb.counter % gb.speedMultiplier) == 0)
+        {
+            drawLine();
+        }
         io.stat.ppuMode = 0;
         if (io.stat.intMode0)
         {

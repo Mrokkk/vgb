@@ -42,7 +42,8 @@ static void drawMessage(Context& ctx, Message& msg, ImGuiIO& io, int i)
         = ImGuiWindowFlags_NoMove
         | ImGuiWindowFlags_NoTitleBar
         | ImGuiWindowFlags_NoNav
-        | ImGuiWindowFlags_NoFocusOnAppearing;
+        | ImGuiWindowFlags_NoFocusOnAppearing
+        | ImGuiWindowFlags_NoSavedSettings;
 
     char windowName[32];
     snprintf(windowName, sizeof(windowName), "Msg%u", i);

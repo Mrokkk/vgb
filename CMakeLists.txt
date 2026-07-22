@@ -6,11 +6,13 @@ option(BUILD_TESTS "Build tests"                   ON)
 option(LTO         "Enable Link Time Optimization" OFF)
 option(OPTIMIZE    "Enable compiler optimizations" ON)
 option(SANITIZE    "Enable ASan and UBsan"         OFF)
+option(PROFILE     "Enable profiling"              OFF)
 
 message(STATUS "Build tests:                   ${BUILD_TESTS}")
 message(STATUS "Enable Link Time Optimization: ${LTO}")
 message(STATUS "Enable compiler optimizations: ${OPTIMIZE}")
 message(STATUS "Enable ASan and UBsan:         ${SANITIZE}")
+message(STATUS "Enable profiling:              ${PROFILE}")
 
 set(CMAKE_BUILD_TYPE Debug)
 
@@ -19,6 +21,10 @@ include(cmake/ccache.cmake)
 include(cmake/fetch_dependencies.cmake)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pipe -std=c++2c -ggdb3 -Wall -Wextra -Werror -Wno-missing-field-initializers")
+
+if(PROFILE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
+endif()
 
 if(SANITIZE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -Wl,-lasan -fno-omit-frame-pointer")

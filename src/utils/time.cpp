@@ -8,8 +8,8 @@
 namespace utils
 {
 
-using SystemClock = std::chrono::system_clock;
-using Time = decltype(SystemClock::now());
+using SteadyClock = std::chrono::steady_clock;
+using Time = decltype(SteadyClock::now());
 
 template <typename T>
 using Duration = std::chrono::duration<T>;
@@ -38,7 +38,7 @@ Timer::Timer()
 {
     static_assert(sizeof(Timer::mData) >= sizeof(TimerData));
     auto& data = getData(mData);
-    constructAt(&data, SystemClock::now());
+    constructAt(&data, SteadyClock::now());
 }
 
 Timer::~Timer()
@@ -49,7 +49,7 @@ Timer::~Timer()
 float Timer::elapsed() const
 {
     const auto start = getData(mData).start;
-    const auto end = SystemClock::now();
+    const auto end = SteadyClock::now();
     Duration<float> elapsed = end - start;
     return elapsed.count();
 }

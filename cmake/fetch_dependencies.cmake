@@ -45,6 +45,23 @@ FetchContent_MakeAvailable(argh)
 
 target_compile_definitions(raylib PUBLIC -DSUPPORT_SCREEN_CAPTURE=0)
 
+target_compile_options(raylib PRIVATE -O3 -ggdb3)
+target_compile_definitions(raylib PRIVATE
+    -DSUPPORT_MODULE_RSHAPES=0
+    -DSUPPORT_MODULE_RTEXT=0
+    -DSUPPORT_MODULE_RMODELS=0
+    -DSUPPORT_CAMERA_SYSTEM=0
+    -DSUPPORT_GESTURES_SYSTEM=0
+    -DSUPPORT_MOUSE_GESTURES=0
+    -DSUPPORT_MESH_GENERATION=0
+    -DSUPPORT_FILEFORMAT_OBJ=0
+    -DSUPPORT_FILEFORMAT_MTL=0
+    -DSUPPORT_FILEFORMAT_IQM=0
+    -DSUPPORT_FILEFORMAT_GLTF=0
+    -DSUPPORT_FILEFORMAT_VOX=0
+    -DSUPPORT_FILEFORMAT_M3D=0
+)
+
 add_library(imgui OBJECT
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
@@ -58,10 +75,10 @@ target_include_directories(imgui SYSTEM INTERFACE ${imgui_club_SOURCE_DIR})
 add_library(rlimgui OBJECT
     ${rlimgui_SOURCE_DIR}/rlImGui.cpp
 )
+target_compile_options(rlimgui PRIVATE -O3 -ggdb3 -Wno-error)
+target_compile_definitions(rlimgui PRIVATE -DNO_FONT_AWESOME)
 target_include_directories(rlimgui PUBLIC ${rlimgui_SOURCE_DIR})
 target_link_libraries(rlimgui PRIVATE raylib imgui)
-target_compile_options(rlimgui PRIVATE -Wno-error)
-target_compile_definitions(rlimgui PRIVATE -DNO_FONT_AWESOME)
 
 include(FindPkgConfig)
 pkg_check_modules(BACKTRACE libbacktrace)

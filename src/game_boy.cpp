@@ -39,6 +39,7 @@ struct DummyComponent final : Component
 GameBoy::GameBoy()
     : state(State::Stopped)
     , speedMultiplier(1)
+    , counter(0)
     , frameNumber(0)
     , inputEnabled(true)
 {
@@ -136,7 +137,6 @@ void GameBoy::frame()
         start();
     }
 
-    static uint64_t counter = 0;
     if ((counter++ % speedMultiplier) == 0)
     {
         ++frameNumber;

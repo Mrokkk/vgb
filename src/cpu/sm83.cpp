@@ -49,8 +49,6 @@ void SM83::reset()
 
 int SM83::step()
 {
-    cache.clear();
-
     if (ime and $if)
     {
 #define HANDLE_IRQ(IRQ) \
@@ -77,6 +75,7 @@ int SM83::step()
 
     const uint16_t oldPc = pc;
 
+    cache.clear();
     uint8_t pcValue = cache.appendOpcodeByte(mem.load8(pc++));
 
     if (pcValue == PREFIX)

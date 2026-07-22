@@ -15,10 +15,13 @@ struct Callstack
 
     void push(uint16_t pc, uint8_t romBank)
     {
-        data[index++] = {
-            .romBank = romBank,
-            .ret = pc,
-        };
+        if (index < 127)
+        {
+            data[index++] = {
+                .romBank = romBank,
+                .ret = pc,
+            };
+        }
     }
 
     void pop()

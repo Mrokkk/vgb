@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <expected>
 #include <functional>
+#include <initializer_list>
 #include <string_view>
 
 #include "utils/consteval_string.hpp"
@@ -90,6 +91,17 @@ struct IniSavedArray final
     constexpr IniSavedArray()
         : mValues()
     {
+        IniSerializer::registerData(Name.data, mValues, Size);
+    }
+
+    template <typename U>
+    constexpr IniSavedArray(std::initializer_list<U>&& values)
+    {
+        size_t i = 0;
+        for (auto it = values.begin(); it != values.end(); ++it, ++i)
+        {
+            mValues[i] = *it;
+        }
         IniSerializer::registerData(Name.data, mValues, Size);
     }
 
