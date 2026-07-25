@@ -88,10 +88,7 @@ void main(GameBoy& gb)
         .gb = gb,
         .cpu = gb.cpu,
         .prevBreakpoint = -1,
-        .console = {
-            .prompt = "(vgb)",
-            .lines = {},
-        },
+        .console{},
         .gui{},
         .symbols{},
         .game{}

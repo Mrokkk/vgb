@@ -79,6 +79,7 @@ add_library(emulator OBJECT
     src/debugger/commands/step.cpp
     src/debugger/commands/symbol.cpp
     src/debugger/commands/watch.cpp
+    src/debugger/console.cpp
     src/debugger/games/pokemon_red.cpp
     src/debugger/games/registry.cpp
     src/debugger/gui/callstack_window.cpp

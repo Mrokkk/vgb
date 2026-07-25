@@ -10,19 +10,30 @@ namespace debugger
 
 struct Console
 {
+    Console();
+    ~Console();
+
     template <typename ...Args>
     ALWAYS_INLINE void writeLine(fmt::format_string<Args...> fmt, Args&&... args)
     {
-        lines.push_back(fmt::format(std::move(fmt), std::forward<Args>(args)...));
+        addLine(fmt::format(std::move(fmt), std::forward<Args>(args)...));
     }
 
-    ALWAYS_INLINE void addLine(std::string line)
+    void addLine(std::string line);
+
+    void addToHistory(const std::string& command);
+    std::string* prevHistoryEntry();
+    std::string* nextHistoryEntry();
+
+    void clearCurrentHistoryEntry()
     {
-        lines.push_back(std::move(line));
+        historyIt = nullptr;
     }
 
     std::string    prompt;
     utils::Strings lines;
+    utils::Strings history;
+    std::string*   historyIt;
 };
 
 }  // namespace debugger
