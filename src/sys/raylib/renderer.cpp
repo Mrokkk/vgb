@@ -23,6 +23,7 @@ namespace sys::raylib
 
 struct ImageAndTexture final
 {
+    bool      dirty;
     void*     pixels;
     Texture2D texture;
 };
@@ -67,6 +68,7 @@ static void raylibLogFormat(int msgType, const char* text, va_list args)
 
 RaylibRenderer::RaylibRenderer(const Config&)
 {
+    mTextures.reserve(128);
     SetTraceLogCallback(raylibLogFormat);
 
     SetConfigFlags(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_RESIZABLE);
@@ -90,7 +92,11 @@ void RaylibRenderer::beginRendering()
 {
     for (auto& e : mTextures)
     {
-        UpdateTexture(e.texture, e.pixels);
+        if (e.dirty)
+        {
+            UpdateTexture(e.texture, e.pixels);
+            e.dirty = false;
+        }
     }
 
     BeginDrawing();
@@ -123,7 +129,8 @@ Texture RaylibRenderer::createTexture(int resX, int resY, void* pixels)
     auto texture = LoadTextureFromImage(image);
     int index = mTextures.size();
 
-    mTextures.emplace_back(ImageAndTexture{
+    auto& t = mTextures.emplace_back(ImageAndTexture{
+        .dirty = false,
         .pixels = pixels,
         .texture = texture
     });
@@ -132,6 +139,7 @@ Texture RaylibRenderer::createTexture(int resX, int resY, void* pixels)
         .index = index,
         .backendId = texture.id,
         .pixels = static_cast<uint32_t*>(image.data),
+        .dirty = &t.dirty,
     };
 }
 

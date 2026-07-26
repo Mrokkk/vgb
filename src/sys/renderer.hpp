@@ -14,6 +14,7 @@ struct Texture
     int       index;
     TextureId backendId;
     uint32_t* pixels;
+    bool*     dirty;
 };
 
 struct Renderer

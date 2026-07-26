@@ -449,6 +449,7 @@ void Ppu::drawLine()
             lcd[y * GB_LCD_RESX + x] = palette[bgPalette[bgColor]] | 0xff000000;
         }
     }
+    *gb.lcd.dirty = true;
 }
 
 ALWAYS_INLINE void Ppu::mode0Callback()
@@ -610,6 +611,7 @@ ALWAYS_INLINE void Ppu::renderMap(bool drawScxScyWindow)
         drawVerticalLine(map, GB_TILE_DATA_RESX, GB_TILE_DATA_RESY, scx, scy, GB_LCD_RESY, 0xff0000ff);
         drawVerticalLine(map, GB_TILE_DATA_RESX, GB_TILE_DATA_RESY, scx + GB_LCD_RESX, scy, GB_LCD_RESY, 0xff0000ff);
     }
+    *mapTexture.dirty = true;
 }
 
 void Ppu::IO::store(uint8_t addr, uint8_t value)
