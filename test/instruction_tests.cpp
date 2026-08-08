@@ -128,7 +128,7 @@ struct Fixture : tools::GameBoyFixture
 
 TEST_CASE_FIXTURE_P(Fixture, "Test ROMs", data)
 {
-    runRom(arg.rom, sizeof(arg));
+    runRom(arg.rom, sizeof(arg.rom));
     auto testOutput = readTestOutput();
     if (not testOutput.contains("Passed")) [[unlikely]]
     {

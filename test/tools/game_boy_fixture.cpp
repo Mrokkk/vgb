@@ -9,7 +9,13 @@
 namespace test::tools
 {
 
+bool GameBoyFixture::textureDirty = false;
 bool GameBoyFixture::initialized = false;
+
+GameBoyFixture::GameBoyFixture()
+{
+    gb.lcd.dirty = &textureDirty;
+}
 
 void GameBoyFixture::loadRomAndRam(std::vector<uint8_t>& rom, std::vector<uint8_t>& ram)
 {
@@ -37,8 +43,6 @@ void GameBoyFixture::runRom(const void* data, size_t size)
 {
     loadRom(data, size);
     run();
-    //CAPTURE(gb.cpu.exc);
-    //REQUIRE_EQ(gb.cpu.exc.type, cpu::Exception::InfiniteLoop);
 }
 
 void GameBoyFixture::run()
