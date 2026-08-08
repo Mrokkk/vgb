@@ -182,6 +182,11 @@ struct Registry final : utils::Immobile
         return mDataEntries;
     }
 
+    ALWAYS_INLINE auto& getCallbacks()
+    {
+        return mCallbacks;
+    }
+
 private:
     ALWAYS_INLINE constexpr Registry()
         : mNamesLen(0)
@@ -192,6 +197,7 @@ private:
     size_t mNamesLen;
     size_t mDataSize;
     std::map<std::string_view, DataEntry> mDataEntries;
+    std::vector<std::move_only_function<void()>> mCallbacks;
 };
 
 size_t getDataEntriesSize(Registry& registry)
@@ -360,6 +366,8 @@ DeserializationResult SaveSerializer::deserialize(const void* data, size_t size)
         return error("size of entries is incorrect");
     }
 
+    gb.events.reset();
+
     for (const auto& e : toDeserialize)
     {
         switch (e.dataEntry.type)
@@ -380,8 +388,19 @@ DeserializationResult SaveSerializer::deserialize(const void* data, size_t size)
         }
     }
 
+    for (auto& callback : registry.getCallbacks())
+    {
+        callback();
+    }
+
     return {};
 
 unexpectedEof:
     return error("data too short");
+}
+
+void SaveSerializer::onDeserialization(std::move_only_function<void()> callback)
+{
+    auto& callbacks = Registry::instance().getCallbacks();
+    callbacks.emplace_back(std::move(callback));
 }

@@ -18,8 +18,9 @@
 namespace sys::raylib
 {
 
-#define RAYLIB_LOG 1
-#define DEFAULT_SCALE 6
+#define RAYLIB_LOG      1
+#define DEFAULT_SCALE   2
+#define MAX_TEXTURES    128
 
 struct ImageAndTexture final
 {
@@ -39,7 +40,8 @@ struct RaylibRenderer final : Renderer
     Texture createTexture(int resX, int resY, void* pixels) override;
 
 private:
-    std::vector<ImageAndTexture> mTextures;
+    size_t          mCurrentTexture;
+    ImageAndTexture mTextures[MAX_TEXTURES];
 };
 
 static void raylibLogFormat(int msgType, const char* text, va_list args)
@@ -67,8 +69,9 @@ static void raylibLogFormat(int msgType, const char* text, va_list args)
 }
 
 RaylibRenderer::RaylibRenderer(const Config&)
+    : mCurrentTexture(0)
+    , mTextures{}
 {
-    mTextures.reserve(128);
     SetTraceLogCallback(raylibLogFormat);
 
     SetConfigFlags(FLAG_WINDOW_MAXIMIZED | FLAG_WINDOW_RESIZABLE);
@@ -80,8 +83,9 @@ RaylibRenderer::RaylibRenderer(const Config&)
 
 RaylibRenderer::~RaylibRenderer()
 {
-    for (auto& e : mTextures)
+    for (size_t i = 0; i < mCurrentTexture; ++i)
     {
+        auto& e = mTextures[i];
         UnloadTexture(e.texture);
     }
     rlImGuiShutdown();
@@ -90,8 +94,9 @@ RaylibRenderer::~RaylibRenderer()
 
 void RaylibRenderer::beginRendering()
 {
-    for (auto& e : mTextures)
+    for (size_t i = 0; i < mCurrentTexture; ++i)
     {
+        auto& e = mTextures[i];
         if (e.dirty)
         {
             UpdateTexture(e.texture, e.pixels);
@@ -126,17 +131,21 @@ Texture RaylibRenderer::createTexture(int resX, int resY, void* pixels)
         .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
     };
 
-    auto texture = LoadTextureFromImage(image);
-    int index = mTextures.size();
+    if (mCurrentTexture >= MAX_TEXTURES)
+    {
+        return {};
+    }
 
-    auto& t = mTextures.emplace_back(ImageAndTexture{
+    auto texture = LoadTextureFromImage(image);
+
+    auto& t = mTextures[mCurrentTexture] = ImageAndTexture{
         .dirty = false,
         .pixels = pixels,
         .texture = texture
-    });
+    };
 
     return Texture{
-        .index = index,
+        .index = static_cast<int>(mCurrentTexture++),
         .backendId = texture.id,
         .pixels = static_cast<uint32_t*>(image.data),
         .dirty = &t.dirty,

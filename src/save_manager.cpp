@@ -126,7 +126,6 @@ void SaveManager::quickLoad()
     gb.withStoppedState(
         [buffer = std::move(buffer), uncompressedSize, save = std::move(save), func = __func__]
         {
-            gb.events.reset(); // FIXME: restore on failure
             auto res = SaveSerializer::deserialize(buffer.data(), uncompressedSize);
 
             if (not res) [[unlikely]]

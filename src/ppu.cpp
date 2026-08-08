@@ -224,6 +224,7 @@ Ppu::Ppu()
     SaveSerializer::registerData("ppu.mode2", mode2);
     SaveSerializer::registerData("ppu.mode3", mode3);
     SaveSerializer::registerData("screenImage", lcd);
+    SaveSerializer::onDeserialization([]{ *gb.lcd.dirty = true; });
     initPpu();
 }
 

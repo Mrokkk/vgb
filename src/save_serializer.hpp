@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -38,4 +39,6 @@ struct SaveSerializer
 
     static SerializationResult   serialize();
     static DeserializationResult deserialize(const void* data, size_t size);
+
+    static void onDeserialization(std::move_only_function<void()> callback);
 };
