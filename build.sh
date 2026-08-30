@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
-BASE_DIR="$(dirname `readlink -f ${0}`)"
+BASE_DIR="$(dirname "$(readlink -f "${0}")")"
 SRC_DIR="$(readlink -f "${BASE_DIR}")"
 BUILD_DIR=.
 REGENERATE=
@@ -18,17 +18,17 @@ RESET="\e[m"
 
 info()
 {
-    echo -e "${BLUE}${INFO}${RESET} ${@}"
+    echo -e "${BLUE}${INFO}${RESET} ${*}"
 }
 
 error()
 {
-    echo -e "${RED}${ERROR}${RESET} ${@}"
+    echo -e "${RED}${ERROR}${RESET} ${*}"
 }
 
 die()
 {
-    echo -e "${RED}${ERROR} ${@}${RESET}"
+    echo -e "${RED}${ERROR} ${*}${RESET}"
     exit 1
 }
 
@@ -146,13 +146,13 @@ regenerate_cmake()
     if [ ! -d "${BUILD_DIR}" ] || [ ! -f "${BUILD_DIR}/build.ninja" ] || [ -n "${REGENERATE}" ]
     then
         cmake \
-            -DOPTIMIZE=${OPTIMIZE} \
-            -DLTO=${LTO} \
-            -DSANITIZE=${SANITIZE} \
-            -DCOVERAGE=${COVERAGE} \
-            -DBUILD_TESTS=${BUILD_TESTS} \
-            -DPROFILE=${PROFILE} \
-            -GNinja \
+            -DOPTIMIZE="${OPTIMIZE}" \
+            -DLTO="${LTO}" \
+            -DSANITIZE="${SANITIZE}" \
+            -DCOVERAGE="${COVERAGE}" \
+            -DBUILD_TESTS="${BUILD_TESTS}" \
+            -DPROFILE="${PROFILE}" \
+            -G Ninja \
             -B "${BUILD_DIR}" "${SRC_DIR}"
     fi
 }
@@ -163,14 +163,38 @@ build_target()
     pushd_silent "${BUILD_DIR}"
     if [ -f build.ninja ]
     then
-        local ts="$(date +%s)"
-        ninja ${@}
+        local ts
+        ts="$(date +%s)"
+        ninja ${*}
         info "Build stats:"
-        ${BASE_DIR}/scripts/ninja_log_parse.py ".ninja_log" "${ts}"
+        "${BASE_DIR}/scripts/ninja_log_parse.py" ".ninja_log" "${ts}"
     else
         die "CMake build was not generated"
     fi
     popd_silent
+}
+
+find_gnu_app()
+{
+    local args=${1}
+    for m in ${args[*]}
+    do
+        if command -v "${m}" &>/dev/null
+        then
+            if "${m}" --help | grep -q gnu.org
+            then
+                command -v "${m}"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+find_gnu_time()
+{
+    local possible=("/usr/bin/time" "/bin/time")
+    find_gnu_app "${possible[*]}"
 }
 
 run_command()
@@ -191,7 +215,7 @@ run_command()
             ;;
     esac
 
-    info "Running: ${@}"
+    info "Running: ${*}"
     local command="${1}"
     shift
 
@@ -207,9 +231,11 @@ run_command()
 
     if [ -n "${time_cmd}" ]
     then
-        if [ -f /usr/bin/time ]
+        local gnu_time
+        gnu_time="$(find_gnu_time)"
+        if [ -n "${gnu_time}" ]
         then
-            wrapper="/usr/bin/time -v"
+            wrapper="${gnu_time} -v"
         else
             wrapper="time"
         fi
@@ -217,9 +243,9 @@ run_command()
 
     ${wrapper} "${command}" "${@}"
 
-    status=$?
+    status="$?"
 
-    if [ ${status} -ge 128 ]
+    if [ "${status}" -ge 128 ]
     then
         error "Command killed by signal $((status - 128))"
     else
@@ -234,11 +260,11 @@ run_command()
         fi
     fi
 
-    if [ -n ${critical} ]
+    if [ -n "${critical}" ]
     then
-        if [ ${status} -ne 0 ]
+        if [ "${status}" -ne 0 ]
         then
-            exit ${status}
+            exit "${status}"
         fi
     fi
 
@@ -286,7 +312,7 @@ case "${COMMAND}" in
             ninja tests-cov-html
         else
             build_target "test" "${NINJA_FLAGS}"
-            run_command -t "${BUILD_DIR}/test/test" "${ARGS}"
+            run_command -t "${BUILD_DIR}/test/test" "${ARGS[@]}"
         fi
         ;;
     *)

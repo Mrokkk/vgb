@@ -543,8 +543,12 @@ finish:
 
 static size_t getAllocUsage()
 {
+#if defined(__GLIBC__) && __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 33)
     const auto m = mallinfo2();
     return m.arena + m.hblkhd;
+#else
+    return 0;
+#endif
 }
 
 namespace

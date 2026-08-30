@@ -37,7 +37,7 @@ struct FileInfo final
 {
     FileType type;
     size_t   size;
-    clock_t  modificationTime;
+    time_t   modificationTime;
 };
 
 using MaybeFileInfo = std::expected<FileInfo, std::string>;
